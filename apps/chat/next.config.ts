@@ -5,6 +5,9 @@ const langgraphUrl = process.env.LANGGRAPH_INTERNAL_URL;
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  // gzip in the Next server buffers the proxied LangGraph event stream until it ends,
+  // so replies would appear all at once instead of streaming.
+  compress: false,
   async rewrites() {
     return langgraphUrl
       ? [{ source: "/api/:path*", destination: `${langgraphUrl}/:path*` }]
