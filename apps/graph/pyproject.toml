@@ -1,0 +1,9 @@
+[project]
+name = "graph"
+version = "0.1.0"
+requires-python = ">=3.13"
+dependencies = [
+    "langchain-openai>=1.7.1",
+    "langgraph>=1.2.15",
+    "langgraph-cli[inmem]>=0.4.33",
+]
