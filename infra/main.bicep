@@ -30,16 +30,10 @@ resource pullIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-
   location: location
 }
 
-// AcrPull built-in role
-resource acrPull 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(acr.id, pullIdentity.id, 'AcrPull')
-  scope: acr
-  properties: {
-    principalId: pullIdentity.properties.principalId
-    principalType: 'ServicePrincipal'
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '7f951dda-4ed3-4680-a7ca-43fe172d538d')
-  }
-}
+// NOTE: grant AcrPull to the identity once, outside this template (the deploy
+// principal only has Contributor, which cannot create role assignments):
+//   az role assignment create --assignee-object-id <identity principalId> \
+//     --assignee-principal-type ServicePrincipal --role AcrPull --scope <acr id>
 
 resource env 'Microsoft.App/managedEnvironments@2024-03-01' = {
   name: '${prefix}-env'
@@ -59,3 +53,5 @@ output acrName string = acr.name
 output acrLoginServer string = acr.properties.loginServer
 output environmentName string = env.name
 output pullIdentityId string = pullIdentity.id
+output pullIdentityPrincipalId string = pullIdentity.properties.principalId
+output acrId string = acr.id
