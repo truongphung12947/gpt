@@ -38,6 +38,11 @@ import {
   ReasoningText,
   ReasoningTrigger,
 } from "@/components/assistant-ui/elements/reasoning.aui";
+import {
+  StreamingText,
+  type Segment,
+} from "@/components/assistant-ui/elements/streaming-text";
+import { TypingIndicator } from "@/components/assistant-ui/elements/typing-indicator";
 import { useModel } from "@/components/model-context";
 import {
   formatContextWindow,
@@ -69,6 +74,7 @@ export const Claude: FC = () => {
             <ThreadPrimitive.Messages>
               {() => <ChatMessage />}
             </ThreadPrimitive.Messages>
+            <AssistantTyping />
 
             <ThreadPrimitive.ViewportFooter className="sticky bottom-0 mx-auto mt-auto w-full max-w-3xl bg-linear-to-b from-transparent via-white/85 to-white pt-4 pb-2 dark:via-black/85 dark:to-black">
               <Composer />
@@ -241,6 +247,33 @@ const ModeTabs: FC = () => {
   );
 };
 
+// Word-by-word reveal with a caret while a part is still streaming.
+const StreamingPart: FC<{ text: string }> = ({ text }) => {
+  const segments = useMemo<Segment[]>(() => [{ text }], [text]);
+  const count = useMemo(() => text.split(" ").length, [text]);
+  return <StreamingText segments={segments} count={count} streaming />;
+};
+
+// Shown from sending a message until the model produces its first words, which can take a
+// while for reasoning models: a run is active and the newest message has no text yet.
+const AssistantTyping: FC = () => {
+  const waiting = useAuiState((s) => {
+    if (!s.thread.isRunning) return false;
+    const last = s.thread.messages.at(-1);
+    if (!last) return false;
+    if (last.role === "user") return true;
+    return !last.parts.some(
+      (p) => (p.type === "text" || p.type === "reasoning") && p.text.trim() !== "",
+    );
+  });
+  if (!waiting) return null;
+  return (
+    <div className="mx-auto w-full max-w-3xl py-3">
+      <TypingIndicator variant="bare" />
+    </div>
+  );
+};
+
 // Consecutive reasoning parts collapse into one "thinking" disclosure.
 const messageGroupBy = groupPartByType({ reasoning: ["group-reasoning"] });
 
@@ -287,7 +320,7 @@ const ChatMessage: FC = () => {
                   case "group-reasoning": {
                     const running = part.status.type === "running";
                     return (
-                      <ReasoningRoot streaming={running}>
+                      <ReasoningRoot variant="ghost" streaming={running}>
                         <ReasoningTrigger
                           active={running}
                           duration={reasoningSeconds(part.timing)}
@@ -299,9 +332,17 @@ const ChatMessage: FC = () => {
                     );
                   }
                   case "reasoning":
-                    return <Reasoning {...part} />;
+                    return part.status.type === "running" ? (
+                      <StreamingPart text={part.text} />
+                    ) : (
+                      <Reasoning {...part} />
+                    );
                   case "text":
-                    return <MarkdownText />;
+                    return part.status.type === "running" ? (
+                      <StreamingPart text={part.text} />
+                    ) : (
+                      <MarkdownText />
+                    );
                   default:
                     return null;
                 }

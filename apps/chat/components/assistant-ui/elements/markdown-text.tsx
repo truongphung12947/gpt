@@ -1,15 +1,19 @@
 "use client";
 
 import "@assistant-ui/react-markdown/styles/dot.css";
+import "katex/dist/katex.min.css";
 
 import {
   type CodeHeaderProps,
   MarkdownTextPrimitive,
   type MarkdownTextPrimitiveProps,
   memoizeMarkdownComponents,
+  normalizeMathDelimiters,
   useIsMarkdownCodeBlock,
 } from "@assistant-ui/react-markdown";
+import rehypeKatex from "rehype-katex";
 import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
 import { type FC, memo, useMemo, useRef } from "react";
 import type { TextMessagePartProps } from "@assistant-ui/react";
 import { CheckIcon, CopyIcon } from "lucide-react";
@@ -55,7 +59,10 @@ const MarkdownTextImpl: FC<MarkdownTextProps> = ({
 
   return (
     <MarkdownTextPrimitive
-      remarkPlugins={[remarkGfm]}
+      remarkPlugins={[remarkGfm, remarkMath]}
+      rehypePlugins={[rehypeKatex]}
+      // Models often emit \(...\) and \[...\]; rewrite them to $...$ / $$...$$.
+      preprocess={normalizeMathDelimiters}
       className="aui-md"
       components={markdownComponents}
       componentsByLanguage={stableComponentsByLanguage}
