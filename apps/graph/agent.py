@@ -14,18 +14,20 @@ def get_model(name: str, effort: str | None = None) -> ChatOpenAI:
     """Use a LiteLLM proxy (OpenAI-compatible) when configured, else OpenAI directly."""
     key = (name, effort)
     if key not in _models:
-        extra = {"reasoning_effort": effort} if effort else {}
+        # Always the Responses API; reasoning models also stream readable reasoning summaries.
+        kwargs: dict = {
+            "model": name,
+            "streaming": True,
+            "use_responses_api": True,
+            "output_version": "responses/v1",
+        }
+        if effort:
+            kwargs["reasoning"] = {"effort": effort, "summary": "detailed"}
         base_url = os.environ.get("LITELLM_BASE_URL")
         if base_url:
-            _models[key] = ChatOpenAI(
-                model=name,
-                base_url=base_url.rstrip("/") + "/v1",
-                api_key=os.environ["LITELLM_API_KEY"],
-                streaming=True,
-                **extra,
-            )
-        else:
-            _models[key] = ChatOpenAI(model=name, streaming=True, **extra)
+            kwargs["base_url"] = base_url.rstrip("/") + "/v1"
+            kwargs["api_key"] = os.environ["LITELLM_API_KEY"]
+        _models[key] = ChatOpenAI(**kwargs)
     return _models[key]
 
 
@@ -35,8 +37,10 @@ def call_model(state: MessagesState, config: RunnableConfig):
     info = find_model(configurable.get("model")) or find_model(default_model())
     name = info["id"] if info else default_model()
     # Thinking level only applies to reasoning models, and only to known levels.
-    effort = configurable.get("reasoning_effort")
-    effort = effort if effort in EFFORTS and info and info["supports_reasoning"] else None
+    effort = None
+    if info and info["supports_reasoning"]:
+        requested = configurable.get("reasoning_effort")
+        effort = requested if requested in EFFORTS else "medium"
     return {"messages": [get_model(name, effort).invoke(state["messages"], config)]}
 
 

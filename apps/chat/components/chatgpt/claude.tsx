@@ -7,6 +7,7 @@ import {
   ComposerPrimitive,
   MessagePrimitive,
   ThreadPrimitive,
+  groupPartByType,
   useAuiState,
 } from "@assistant-ui/react";
 import {
@@ -30,6 +31,13 @@ import {
 } from "lucide-react";
 import { useMemo, useState, type FC } from "react";
 import { useAttachmentSrc } from "@/hooks/use-attachment-src";
+import {
+  Reasoning,
+  ReasoningContent,
+  ReasoningRoot,
+  ReasoningText,
+  ReasoningTrigger,
+} from "@/components/assistant-ui/elements/reasoning.aui";
 import { useModel } from "@/components/model-context";
 import {
   formatContextWindow,
@@ -233,6 +241,14 @@ const ModeTabs: FC = () => {
   );
 };
 
+// Consecutive reasoning parts collapse into one "thinking" disclosure.
+const messageGroupBy = groupPartByType({ reasoning: ["group-reasoning"] });
+
+const reasoningSeconds = (timing: { startedAt: number; completedAt?: number } | undefined) =>
+  timing?.completedAt === undefined
+    ? undefined
+    : Math.round((timing.completedAt - timing.startedAt) / 1000);
+
 const ChatMessage: FC = () => {
   return (
     <MessagePrimitive.Root className="group/message relative mx-auto flex w-full max-w-3xl flex-col py-2">
@@ -265,12 +281,32 @@ const ChatMessage: FC = () => {
       <AuiIf condition={(s) => s.message.role === "assistant"}>
         <div className="flex flex-col">
           <div className="prose prose-claude leading-[1.65rem] wrap-break-word text-[#0d0d0d] dark:text-[#ececec]">
-            <MessagePrimitive.Parts>
-              {({ part }) => {
-                if (part.type === "text") return <MarkdownText />;
-                return null;
+            <MessagePrimitive.GroupedParts groupBy={messageGroupBy}>
+              {({ part, children }) => {
+                switch (part.type) {
+                  case "group-reasoning": {
+                    const running = part.status.type === "running";
+                    return (
+                      <ReasoningRoot streaming={running}>
+                        <ReasoningTrigger
+                          active={running}
+                          duration={reasoningSeconds(part.timing)}
+                        />
+                        <ReasoningContent aria-busy={running}>
+                          <ReasoningText>{children}</ReasoningText>
+                        </ReasoningContent>
+                      </ReasoningRoot>
+                    );
+                  }
+                  case "reasoning":
+                    return <Reasoning {...part} />;
+                  case "text":
+                    return <MarkdownText />;
+                  default:
+                    return null;
+                }
               }}
-            </MessagePrimitive.Parts>
+            </MessagePrimitive.GroupedParts>
           </div>
           <ActionBarPrimitive.Root className="mt-2 flex items-center gap-0.5 opacity-0 transition-opacity group-focus-within/message:opacity-100 group-hover/message:opacity-100">
             <ActionBarPrimitive.Copy className={messageActionButtonClassName}>
