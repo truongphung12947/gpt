@@ -34,12 +34,12 @@ import { MarkdownText } from "@/components/assistant-ui/elements/markdown-text";
 import { CloneThreadShell } from "./clone-thread-shell";
 
 const messageActionButtonClassName =
-  "flex size-8 items-center justify-center rounded-md text-[#5b5950] transition-colors hover:bg-[#1a1a18]/5 hover:text-[#1a1a18] dark:text-[#a3a098] dark:hover:bg-white/5 dark:hover:text-[#eee]";
+  "flex size-8 items-center justify-center rounded-md text-[#5d5d5d] transition-colors hover:bg-[#0d0d0d]/5 hover:text-[#0d0d0d] dark:text-[#cdcdcd] dark:hover:bg-white/5 dark:hover:text-[#ececec]";
 
 export const Claude: FC = () => {
   return (
-    <CloneThreadShell railClassName="border-[#DCD4C2] bg-[#EAE4D3] dark:border-[#3B3934] dark:bg-[#252420]">
-      <ThreadPrimitive.Root className="flex h-full flex-col items-stretch bg-[#F0ECE0] font-serif text-[#1a1a18] dark:bg-[#2b2a27] dark:text-[#eee]">
+    <CloneThreadShell>
+      <ThreadPrimitive.Root className="flex h-full flex-col items-stretch bg-white text-[#0d0d0d] dark:bg-black dark:text-[#ececec]">
         <AuiIf condition={(s) => s.thread.isEmpty}>
           <EmptyState />
         </AuiIf>
@@ -50,9 +50,9 @@ export const Claude: FC = () => {
               {() => <ChatMessage />}
             </ThreadPrimitive.Messages>
 
-            <ThreadPrimitive.ViewportFooter className="sticky bottom-0 mx-auto mt-auto w-full max-w-3xl bg-linear-to-b from-transparent via-[#F0ECE0]/85 to-[#F0ECE0] pt-4 pb-2 dark:via-[#2b2a27]/85 dark:to-[#2b2a27]">
+            <ThreadPrimitive.ViewportFooter className="sticky bottom-0 mx-auto mt-auto w-full max-w-3xl bg-linear-to-b from-transparent via-white/85 to-white pt-4 pb-2 dark:via-black/85 dark:to-black">
               <Composer />
-              <p className="pt-2 text-center text-xs text-[#8a8780] dark:text-[#a3a098]">
+              <p className="pt-2 text-center text-xs text-[#5d5d5d] dark:text-[#afafaf]">
                 AI can make mistakes. Please double-check responses.
               </p>
             </ThreadPrimitive.ViewportFooter>
@@ -67,8 +67,8 @@ const EmptyState: FC = () => {
   return (
     <div className="flex grow flex-col items-center justify-center px-4">
       <div className="mx-auto flex w-full max-w-2xl flex-col items-stretch gap-5">
-        <p className="flex items-center justify-center gap-3 font-serif text-3xl text-[#1a1a18] sm:text-4xl dark:text-[#eee]">
-          <Sparkle className="size-7 fill-[#c96442] text-[#c96442]" />
+        <p className="flex items-center justify-center gap-3 text-3xl text-[#0d0d0d] sm:text-4xl dark:text-[#ececec]">
+          <Sparkle className="size-7 fill-[#0d0d0d] text-[#0d0d0d] dark:fill-white dark:text-white" />
           <span>How can I help you today?</span>
         </p>
         <Composer />
@@ -80,23 +80,23 @@ const EmptyState: FC = () => {
 
 const Composer: FC = () => {
   return (
-    <ComposerPrimitive.Root className="flex w-full flex-col gap-2 rounded-2xl border border-[#E5E0D6] bg-white px-3.5 pt-3 pb-2.5 dark:border-[#3d3a35] dark:bg-[#1f1e1b]">
+    <ComposerPrimitive.Root className="flex w-full flex-col gap-2 rounded-[28px] border border-[#e5e5e5] bg-white px-3.5 pt-3 pb-2.5 focus-within:border-[#d0d0d0] dark:border-transparent dark:bg-[#212121] dark:focus-within:border-transparent">
       <ComposerPrimitive.Input
         placeholder="How can I help you today?"
         rows={1}
-        className="block max-h-72 min-h-6 w-full resize-none bg-transparent text-[#1a1a18] outline-none placeholder:text-[#9a9893] dark:text-[#eee] dark:placeholder:text-[#9a9893]"
+        className="block max-h-72 min-h-6 w-full resize-none bg-transparent text-[#0d0d0d] outline-none placeholder:text-[#8e8e8e] dark:text-[#ececec] dark:placeholder:text-[#8e8e8e]"
       />
 
       <div className="flex w-full items-center gap-2">
         <ComposerPrimitive.AddAttachment
           aria-label="Add attachment"
-          className="flex size-8 shrink-0 items-center justify-center rounded-md text-[#5b5950] transition-colors hover:bg-[#1a1a18]/5 hover:text-[#1a1a18] dark:text-[#a3a098] dark:hover:bg-white/5 dark:hover:text-[#eee]"
+          className="flex size-8 shrink-0 items-center justify-center rounded-md text-[#5d5d5d] transition-colors hover:bg-[#0d0d0d]/5 hover:text-[#0d0d0d] dark:text-[#cdcdcd] dark:hover:bg-white/5 dark:hover:text-[#ececec]"
         >
           <PlusIcon width={16} height={16} />
         </ComposerPrimitive.AddAttachment>
 
         <div className="ml-auto flex items-center gap-1">
-          <span className="flex h-8 items-center px-2.5 font-serif text-sm whitespace-nowrap text-[#5b5950] dark:text-[#a3a098]">
+          <span className="flex h-8 items-center px-2.5 text-sm whitespace-nowrap text-[#5d5d5d] dark:text-[#cdcdcd]">
             gpt-6-luna
           </span>
           <ComposerPrimaryAction />
@@ -118,7 +118,7 @@ const ComposerPrimaryAction: FC = () => {
   return (
     <>
       <AuiIf condition={(s) => s.thread.isRunning}>
-        <ComposerPrimitive.Cancel className="flex size-8 items-center justify-center rounded-md bg-[#c96442] text-white transition-colors hover:bg-[#b1573a]">
+        <ComposerPrimitive.Cancel className="flex size-8 items-center justify-center rounded-md bg-[#0d0d0d] text-white transition-colors hover:bg-[#2a2a2a] dark:bg-white dark:text-black dark:hover:bg-[#e5e5e5]">
           <div className="size-2.5 rounded-[2px] bg-current" />
         </ComposerPrimitive.Cancel>
       </AuiIf>
@@ -127,7 +127,7 @@ const ComposerPrimaryAction: FC = () => {
         condition={(s) => !s.thread.isRunning && s.composer.dictation != null}
       >
         <ComposerPrimitive.StopDictation
-          className="flex size-8 items-center justify-center rounded-md bg-[#c96442] text-white transition-colors hover:bg-[#b1573a]"
+          className="flex size-8 items-center justify-center rounded-md bg-[#0d0d0d] text-white transition-colors hover:bg-[#2a2a2a] dark:bg-white dark:text-black dark:hover:bg-[#e5e5e5]"
           aria-label="Stop dictation"
         >
           <div className="size-2.5 animate-pulse rounded-[2px] bg-current" />
@@ -141,7 +141,7 @@ const ComposerPrimaryAction: FC = () => {
           !s.composer.isEmpty
         }
       >
-        <ComposerPrimitive.Send className="flex size-8 items-center justify-center rounded-md bg-[#c96442] text-white transition-colors hover:bg-[#b1573a] disabled:pointer-events-none disabled:opacity-50">
+        <ComposerPrimitive.Send className="flex size-8 items-center justify-center rounded-md bg-[#0d0d0d] text-white transition-colors hover:bg-[#2a2a2a] dark:bg-white dark:text-black dark:hover:bg-[#e5e5e5] disabled:pointer-events-none disabled:opacity-50">
           <ArrowUpIcon width={16} height={16} />
         </ComposerPrimitive.Send>
       </AuiIf>
@@ -154,7 +154,7 @@ const ComposerPrimaryAction: FC = () => {
         }
       >
         <ComposerPrimitive.Dictate
-          className="flex size-8 items-center justify-center rounded-md text-[#5b5950] transition-colors hover:bg-[#1a1a18]/5 hover:text-[#1a1a18] dark:text-[#a3a098] dark:hover:bg-white/5 dark:hover:text-[#eee]"
+          className="flex size-8 items-center justify-center rounded-md text-[#5d5d5d] transition-colors hover:bg-[#0d0d0d]/5 hover:text-[#0d0d0d] dark:text-[#cdcdcd] dark:hover:bg-white/5 dark:hover:text-[#ececec]"
           aria-label="Use voice mode"
         >
           <AudioLines className="size-4" />
@@ -181,10 +181,10 @@ const ModeTabs: FC = () => {
           type="button"
           aria-hidden="true"
           tabIndex={-1}
-          className="flex h-8 items-center gap-1.5 rounded-lg border border-[#E5E0D6] bg-transparent px-3 text-sm whitespace-nowrap text-[#3d3a35] transition-colors hover:bg-white/60 dark:border-[#3d3a35] dark:text-[#cdc9be] dark:hover:bg-[#1f1e1b]/60"
+          className="flex h-8 items-center gap-1.5 rounded-lg border border-[#e5e5e5] bg-transparent px-3 text-sm whitespace-nowrap text-[#0d0d0d] transition-colors hover:bg-black/[0.05] dark:border-white/15 dark:text-[#ececec] dark:hover:bg-white/10"
         >
-          <Icon className="size-3.5 text-[#8a8780] dark:text-[#a3a098]" />
-          <span className="font-serif">{label}</span>
+          <Icon className="size-3.5 text-[#5d5d5d] dark:text-[#cdcdcd]" />
+          <span>{label}</span>
         </button>
       ))}
     </div>
@@ -196,7 +196,7 @@ const ChatMessage: FC = () => {
     <MessagePrimitive.Root className="group/message relative mx-auto flex w-full max-w-3xl flex-col py-2">
       <AuiIf condition={(s) => s.message.role === "user"}>
         <div className="flex flex-col items-end gap-1">
-          <div className="max-w-[80%] rounded-2xl bg-[#E5E0D6] px-4 py-2.5 wrap-break-word whitespace-pre-wrap text-[#1a1a18] dark:bg-[#393937] dark:text-[#eee]">
+          <div className="max-w-[80%] rounded-2xl bg-[#0d0d0d] px-4 py-2.5 wrap-break-word whitespace-pre-wrap text-white dark:bg-[#ececec] dark:text-[#0d0d0d]">
             <MessagePrimitive.Parts>
               {({ part }) => {
                 if (part.type === "text") return <MarkdownText />;
@@ -222,7 +222,7 @@ const ChatMessage: FC = () => {
 
       <AuiIf condition={(s) => s.message.role === "assistant"}>
         <div className="flex flex-col">
-          <div className="prose prose-claude font-serif leading-[1.65rem] wrap-break-word text-[#1a1a18] dark:text-[#eee]">
+          <div className="prose prose-claude leading-[1.65rem] wrap-break-word text-[#0d0d0d] dark:text-[#ececec]">
             <MessagePrimitive.Parts>
               {({ part }) => {
                 if (part.type === "text") return <MarkdownText />;
@@ -266,7 +266,7 @@ const ClaudeAttachment: FC = () => {
   return (
     <AttachmentPrimitive.Root className="group/thumbnail relative">
       <div
-        className="overflow-hidden rounded-lg border border-[#E5E0D6] dark:border-[#3d3a35]"
+        className="overflow-hidden rounded-lg border border-[#e5e5e5] dark:border-white/15"
         style={{ width: "80px", height: "80px" }}
       >
         {isImage && src ? (
@@ -276,13 +276,13 @@ const ClaudeAttachment: FC = () => {
             src={src}
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center bg-white text-[#5b5950] dark:bg-[#2b2a27] dark:text-[#a3a098]">
+          <div className="flex h-full w-full items-center justify-center bg-white text-[#5d5d5d] dark:bg-black dark:text-[#cdcdcd]">
             <AttachmentPrimitive.unstable_Thumb className="text-xs" />
           </div>
         )}
       </div>
       <AttachmentPrimitive.Remove
-        className="absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center rounded-full bg-[#1a1a18] text-white opacity-0 transition-opacity group-focus-within/thumbnail:opacity-100 group-hover/thumbnail:opacity-100 hover:bg-[#3d3a35] dark:bg-white dark:text-[#1a1a18] dark:hover:bg-[#cdc9be]"
+        className="absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center rounded-full bg-[#0d0d0d] text-white opacity-0 transition-opacity group-focus-within/thumbnail:opacity-100 group-hover/thumbnail:opacity-100 hover:bg-[#2a2a2a] dark:bg-white dark:text-[#0d0d0d] dark:hover:bg-[#cdcdcd]"
         aria-label="Remove attachment"
       >
         <XIcon width={12} height={12} />
