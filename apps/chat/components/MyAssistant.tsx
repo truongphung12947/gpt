@@ -12,7 +12,7 @@ import { ThreadList } from "@/components/assistant-ui/elements/thread-list.aui";
 import { createClient } from "@/lib/chatApi";
 import { createLangGraphThreadListAdapter } from "@/lib/threadListAdapter";
 
-const ASSISTANT_ID = process.env["NEXT_PUBLIC_LANGGRAPH_ASSISTANT_ID"]!;
+const ASSISTANT_ID = process.env.NEXT_PUBLIC_LANGGRAPH_ASSISTANT_ID ?? "agent";
 
 export function MyAssistant() {
   const client = useMemo(() => createClient(), []);

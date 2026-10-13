@@ -4,7 +4,16 @@ Platform (resource group `$AZURE_RESOURCE_GROUP`, region `$AZURE_LOCATION`) is d
 ACR (`gptacr…`), Log Analytics, Container Apps environment `gpt-env`, and user-assigned identity `gpt-acr-pull`
 (AcrPull on the registry was granted manually; the deploy principal is Contributor only and cannot create role assignments).
 
-## Deploy an app
+## Standing rule: deploy after every code change
+After every code change to `apps/` or `infra/`, run `scripts/deploy-all.sh`, verify the result (revisions healthy,
+open the public URL and send a test message), and tell the user the chat URL printed by the script.
+Authorised by the user for the `chat` and `graph` apps only; confirm before deploying anything else.
+
+- `chat` (public, Next.js) proxies `/api/*` to `graph` (internal ingress only, LangGraph server) so the OpenAI key is never reachable directly.
+- `graph` runs `langgraph dev` with one replica: threads are in memory and are lost on restart. Persistent storage would need a Postgres-backed LangGraph deployment.
+- `OPENAI_API_KEY` is stored as the Container App secret `openai-api-key`. It is read from the env or `apps/graph/.env` (gitignored); with neither, the script only updates the graph image and keeps the stored secret.
+
+## Deploy a single app
     scripts/deploy.sh <app-name> <app-dir> [port]
 Builds with `az acr build` (no local Docker) and deploys `infra/app.bicep` (scale-to-zero, external ingress by default;
 override via `-p` params such as `minReplicas`, `externalIngress`, `env`). Prints the app FQDN. Example app: `apps/hello`.

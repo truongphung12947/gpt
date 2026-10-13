@@ -9,8 +9,11 @@ param minReplicas int = 0
 param maxReplicas int = 3
 param cpu string = '0.25'
 param memory string = '0.5Gi'
-@description('Plain environment variables')
+@description('Environment variables; use {name, secretRef} for values held in secretValues')
 param env array = []
+@secure()
+@description('Container App secrets as { secret-name: value }; names are lowercase letters, digits and dashes')
+param secretValues object = {}
 param location string = resourceGroup().location
 param environmentName string = 'gpt-env'
 param pullIdentityName string = 'gpt-acr-pull'
@@ -40,6 +43,10 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
         targetPort: targetPort
         transport: 'auto'
       }
+      secrets: [for s in items(secretValues): {
+        name: s.key
+        value: s.value
+      }]
       registries: [
         {
           server: acrLoginServer
