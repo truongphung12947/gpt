@@ -28,15 +28,15 @@ import {
   ThumbsUp,
   XIcon,
 } from "lucide-react";
-import { useState, type FC } from "react";
+import { useMemo, useState, type FC } from "react";
 import { useAttachmentSrc } from "@/hooks/use-attachment-src";
 import { useModel } from "@/components/model-context";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  ModelSelectorContent,
+  ModelSelectorRoot,
+  ModelSelectorTrigger,
+  type ModelOption,
+} from "@/components/assistant-ui/elements/model-selector";
 import { MarkdownText } from "@/components/assistant-ui/elements/markdown-text";
 import { CloneThreadShell } from "./clone-thread-shell";
 
@@ -171,32 +171,21 @@ const ComposerPrimaryAction: FC = () => {
 
 const ModelPicker: FC = () => {
   const { models, selected, select } = useModel();
+  const options = useMemo<ModelOption[]>(
+    () => models.map((id) => ({ id, name: id })),
+    [models],
+  );
   if (!selected) return null;
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        aria-label="Choose model"
-        className="flex h-8 items-center gap-1 rounded-md px-2.5 text-sm whitespace-nowrap text-[#0d0d0d] transition hover:bg-[#0d0d0d]/5 dark:text-[#ececec] dark:hover:bg-white/5"
-      >
-        <span>{selected}</span>
-        <ChevronDownIcon width={16} height={16} className="opacity-60" />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="min-w-56">
-        {models.map((m) => (
-          <DropdownMenuItem
-            key={m}
-            onClick={() => select(m)}
-            className="flex items-center gap-3"
-          >
-            <span className="flex size-4 items-center justify-center">
-              {m === selected ? <CheckIcon /> : null}
-            </span>
-            <span className="text-sm">{m}</span>
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <ModelSelectorRoot
+      models={options}
+      value={selected}
+      onValueChange={select}
+    >
+      <ModelSelectorTrigger variant="ghost" size="sm" aria-label="Choose model" />
+      <ModelSelectorContent align="end" searchable={options.length > 6} />
+    </ModelSelectorRoot>
   );
 };
 
