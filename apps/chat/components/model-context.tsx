@@ -11,34 +11,54 @@ import {
   type ReactNode,
 } from "react";
 
+export type ChatModel = {
+  id: string;
+  context_window: number | null;
+  supports_reasoning: boolean;
+};
+
 type ModelState = {
-  models: string[];
+  models: ChatModel[];
   selected: string | undefined;
   select: (model: string) => void;
-  /** Always the latest selection, for code that runs outside React renders. */
-  getSelected: () => string | undefined;
+  effort: string;
+  setEffort: (effort: string) => void;
+  /** Latest model + thinking level, for code that runs outside React renders. */
+  getRunConfig: () => { model?: string; reasoning_effort?: string };
 };
 
 const ModelContext = createContext<ModelState | null>(null);
 const STORAGE_KEY = "chat:model";
+const EFFORT_KEY = "chat:effort";
 
 export function ModelProvider({ children }: { children: ReactNode }) {
-  const [models, setModels] = useState<string[]>([]);
+  const [models, setModels] = useState<ChatModel[]>([]);
   const [selected, setSelected] = useState<string | undefined>();
+  const [effort, setEffortState] = useState("medium");
   const selectedRef = useRef<string | undefined>(undefined);
+  const effortRef = useRef("medium");
+  const modelsRef = useRef<ChatModel[]>([]);
 
   useEffect(() => {
     let cancelled = false;
     fetch("/api/models")
       .then((r) => (r.ok ? r.json() : null))
-      .then((d: { models: string[]; default: string } | null) => {
+      .then((d: { models: ChatModel[]; default: string } | null) => {
         if (cancelled || !d) return;
         let saved: string | null = null;
+        let savedEffort: string | null = null;
         try {
           saved = localStorage.getItem(STORAGE_KEY);
+          savedEffort = localStorage.getItem(EFFORT_KEY);
         } catch {}
-        const initial = saved && d.models.includes(saved) ? saved : d.default;
+        const initial =
+          saved && d.models.some((m) => m.id === saved) ? saved : d.default;
         selectedRef.current = initial;
+        modelsRef.current = d.models;
+        if (savedEffort) {
+          effortRef.current = savedEffort;
+          setEffortState(savedEffort);
+        }
         setModels(d.models);
         setSelected(initial);
       })
@@ -56,11 +76,26 @@ export function ModelProvider({ children }: { children: ReactNode }) {
     } catch {}
   }, []);
 
-  const getSelected = useCallback(() => selectedRef.current, []);
+  const setEffort = useCallback((next: string) => {
+    effortRef.current = next;
+    setEffortState(next);
+    try {
+      localStorage.setItem(EFFORT_KEY, next);
+    } catch {}
+  }, []);
+
+  const getRunConfig = useCallback(() => {
+    const model = selectedRef.current;
+    const reasoning = modelsRef.current.find((m) => m.id === model)?.supports_reasoning;
+    return {
+      ...(model ? { model } : {}),
+      ...(reasoning ? { reasoning_effort: effortRef.current } : {}),
+    };
+  }, []);
 
   const value = useMemo(
-    () => ({ models, selected, select, getSelected }),
-    [models, selected, select, getSelected],
+    () => ({ models, selected, select, effort, setEffort, getRunConfig }),
+    [models, selected, select, effort, setEffort, getRunConfig],
   );
   return <ModelContext.Provider value={value}>{children}</ModelContext.Provider>;
 }

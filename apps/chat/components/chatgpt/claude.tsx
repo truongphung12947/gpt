@@ -32,6 +32,11 @@ import { useMemo, useState, type FC } from "react";
 import { useAttachmentSrc } from "@/hooks/use-attachment-src";
 import { useModel } from "@/components/model-context";
 import {
+  formatContextWindow,
+  formatModelName,
+  modelIcon,
+} from "@/components/model-meta";
+import {
   ModelSelectorContent,
   ModelSelectorRoot,
   ModelSelectorTrigger,
@@ -170,9 +175,19 @@ const ComposerPrimaryAction: FC = () => {
 };
 
 const ModelPicker: FC = () => {
-  const { models, selected, select } = useModel();
+  const { models, selected, select, effort, setEffort } = useModel();
   const options = useMemo<ModelOption[]>(
-    () => models.map((id) => ({ id, name: id })),
+    () =>
+      models.map((m) => {
+        const context = formatContextWindow(m.context_window);
+        return {
+          id: m.id,
+          name: formatModelName(m.id),
+          icon: modelIcon(m.id),
+          ...(context ? { description: `${context} context window` } : {}),
+          ...(m.supports_reasoning ? { efforts: true as const } : {}),
+        };
+      }),
     [models],
   );
   if (!selected) return null;
@@ -182,6 +197,8 @@ const ModelPicker: FC = () => {
       models={options}
       value={selected}
       onValueChange={select}
+      effort={effort}
+      onEffortChange={setEffort}
     >
       <ModelSelectorTrigger variant="ghost" size="sm" aria-label="Choose model" />
       <ModelSelectorContent align="end" searchable={options.length > 6} />

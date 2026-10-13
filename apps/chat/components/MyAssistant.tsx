@@ -24,11 +24,11 @@ export function MyAssistant() {
 
 function Assistant() {
   const client = useMemo(() => createClient(), []);
-  const { getSelected } = useModel();
+  const { getRunConfig } = useModel();
   const stream = useMemo(
     () =>
       unstable_createLangGraphStream({
-        // Every run carries the model picked in the composer.
+        // Every run carries the model and thinking level picked in the composer.
         client: {
           runs: {
             stream: (threadId: string | null, assistantId, payload) =>
@@ -38,7 +38,7 @@ function Assistant() {
                   ...payload?.config,
                   configurable: {
                     ...payload?.config?.configurable,
-                    ...(getSelected() ? { model: getSelected() } : {}),
+                    ...getRunConfig(),
                   },
                 },
               }),
@@ -46,7 +46,7 @@ function Assistant() {
         },
         assistantId: ASSISTANT_ID,
       }),
-    [client, getSelected],
+    [client, getRunConfig],
   );
 
   const threadListAdapter = useMemo(

@@ -15,7 +15,7 @@ Authorised by the user for the `chat` and `graph` apps only; confirm before depl
   otherwise from OpenAI. Deploy with `LITELLM_BASE_URL`, `LITELLM_MODEL` and a key set; the key is stored as the Container App secret `litellm-api-key`.
   The user chose to deploy the LiteLLM **admin key** (`LITELLM_ALLOW_ADMIN_KEY=1`); a limited virtual key in `LITELLM_API_KEY` is the safer option and takes priority if set.
 - The chat has a model selector. The graph serves `GET /models` (custom route in `apps/graph/webapp.py`, proxied at `/api/models`) from LiteLLM's model list,
-  optionally narrowed by `LITELLM_MODELS` (comma-separated). The chosen model is sent per run as `config.configurable.model` and validated server-side against that list.
+  optionally narrowed by `LITELLM_MODELS` (comma-separated). `/models` also returns each model's context window and reasoning support (from LiteLLM `/model/info`). The chosen model and thinking level (`low|medium|high`, only for reasoning models) are sent per run as `config.configurable.model` / `reasoning_effort` and validated server-side.
 - `OPENAI_API_KEY` is stored as the Container App secret `openai-api-key`. It is read from the env or `apps/graph/.env` (gitignored); with neither, the script only updates the graph image and keeps the stored secret.
 
 ## Deploy a single app

@@ -4,32 +4,40 @@ from langchain_core.runnables import RunnableConfig
 from langchain_openai import ChatOpenAI
 from langgraph.graph import END, START, MessagesState, StateGraph
 
-from models import available_models, default_model
+from models import default_model, find_model
 
-_models: dict[str, ChatOpenAI] = {}
+EFFORTS = {"low", "medium", "high"}
+_models: dict[tuple[str, str | None], ChatOpenAI] = {}
 
 
-def get_model(name: str) -> ChatOpenAI:
+def get_model(name: str, effort: str | None = None) -> ChatOpenAI:
     """Use a LiteLLM proxy (OpenAI-compatible) when configured, else OpenAI directly."""
-    if name not in _models:
+    key = (name, effort)
+    if key not in _models:
+        extra = {"reasoning_effort": effort} if effort else {}
         base_url = os.environ.get("LITELLM_BASE_URL")
         if base_url:
-            _models[name] = ChatOpenAI(
+            _models[key] = ChatOpenAI(
                 model=name,
                 base_url=base_url.rstrip("/") + "/v1",
                 api_key=os.environ["LITELLM_API_KEY"],
                 streaming=True,
+                **extra,
             )
         else:
-            _models[name] = ChatOpenAI(model=name, streaming=True)
-    return _models[name]
+            _models[key] = ChatOpenAI(model=name, streaming=True, **extra)
+    return _models[key]
 
 
 def call_model(state: MessagesState, config: RunnableConfig):
-    requested = (config.get("configurable") or {}).get("model")
+    configurable = config.get("configurable") or {}
     # Only models the proxy actually offers; anything else falls back to the default.
-    name = requested if requested in available_models() else default_model()
-    return {"messages": [get_model(name).invoke(state["messages"], config)]}
+    info = find_model(configurable.get("model")) or find_model(default_model())
+    name = info["id"] if info else default_model()
+    # Thinking level only applies to reasoning models, and only to known levels.
+    effort = configurable.get("reasoning_effort")
+    effort = effort if effort in EFFORTS and info and info["supports_reasoning"] else None
+    return {"messages": [get_model(name, effort).invoke(state["messages"], config)]}
 
 
 workflow = StateGraph(MessagesState)
