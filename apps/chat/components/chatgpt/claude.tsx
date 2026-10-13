@@ -43,6 +43,7 @@ import {
   type Segment,
 } from "@/components/assistant-ui/elements/streaming-text";
 import { TypingIndicator } from "@/components/assistant-ui/elements/typing-indicator";
+import { ContextRing } from "@/components/context-usage";
 import { useModel } from "@/components/model-context";
 import {
   formatContextWindow,
@@ -123,6 +124,7 @@ const Composer: FC = () => {
 
         <div className="ml-auto flex items-center gap-1">
           <ModelPicker />
+          <ContextRing />
           <ComposerPrimaryAction />
         </div>
       </div>
