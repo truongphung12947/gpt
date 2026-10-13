@@ -17,7 +17,7 @@ fi
 export OPENAI_API_KEY="${OPENAI_API_KEY:-}"
 
 # --- graph (internal ingress, single replica: threads live in memory) ---
-az acr build -r "$ACR" -t "graph:$TAG" "$ROOT/apps/graph" >/dev/null
+az acr build --no-logs -r "$ACR" -t "graph:$TAG" "$ROOT/apps/graph" >/dev/null
 GRAPH_IMAGE="$LOGIN/graph:$TAG"
 # LiteLLM (OpenAI-compatible proxy) is used when LITELLM_BASE_URL + LITELLM_MODEL are set.
 # The app gets LITELLM_API_KEY; the admin key is only used if LITELLM_ALLOW_ADMIN_KEY=1.
@@ -55,7 +55,7 @@ else
 fi
 
 # --- chat (public); the graph URL is baked into the Next.js rewrite at build time ---
-az acr build -r "$ACR" -t "chat:$TAG" --build-arg "LANGGRAPH_INTERNAL_URL=https://$GRAPH_FQDN" "$ROOT/apps/chat" >/dev/null
+az acr build --no-logs -r "$ACR" -t "chat:$TAG" --build-arg "LANGGRAPH_INTERNAL_URL=https://$GRAPH_FQDN" "$ROOT/apps/chat" >/dev/null
 CHAT_FQDN="$(az deployment group create -g "$RG" -f "$ROOT/infra/app.bicep" \
   -p appName=chat image="$LOGIN/chat:$TAG" targetPort=8080 acrLoginServer="$LOGIN" \
      minReplicas=1 maxReplicas=3 cpu=0.5 memory=1Gi \
