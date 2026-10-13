@@ -7,8 +7,7 @@ import {
   useLangGraphRuntime,
   type LangChainMessage,
 } from "@assistant-ui/react-langgraph";
-import { Thread } from "@/components/assistant-ui/elements/thread.aui";
-import { ThreadList } from "@/components/assistant-ui/elements/thread-list.aui";
+import { ChatGPT } from "@/components/chatgpt/chatgpt";
 import { createClient } from "@/lib/chatApi";
 import { createLangGraphThreadListAdapter } from "@/lib/threadListAdapter";
 
@@ -43,13 +42,8 @@ export function MyAssistant() {
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
-      <div className="flex h-dvh">
-        <aside className="hidden w-64 shrink-0 border-e p-2 md:block">
-          <ThreadList />
-        </aside>
-        <main className="min-w-0 flex-1">
-          <Thread />
-        </main>
+      <div className="h-dvh">
+        <ChatGPT />
       </div>
     </AssistantRuntimeProvider>
   );
