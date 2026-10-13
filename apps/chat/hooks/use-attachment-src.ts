@@ -15,13 +15,15 @@ export const useAttachmentSrc = (): string | undefined => {
 
   const [objectUrl, setObjectUrl] = useState<string | undefined>();
   useEffect(() => {
-    if (!file) {
-      setObjectUrl(undefined);
-      return;
-    }
+    if (!file) return;
     const url = URL.createObjectURL(file);
+    // Syncing with an external resource (the browser's blob URL registry).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setObjectUrl(url);
-    return () => URL.revokeObjectURL(url);
+    return () => {
+      URL.revokeObjectURL(url);
+      setObjectUrl(undefined);
+    };
   }, [file]);
 
   return objectUrl ?? src;

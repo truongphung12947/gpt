@@ -7,7 +7,7 @@ import {
   useLangGraphRuntime,
   type LangChainMessage,
 } from "@assistant-ui/react-langgraph";
-import { ChatGPT } from "@/components/chatgpt/chatgpt";
+import { Claude } from "@/components/chatgpt/claude";
 import { createClient } from "@/lib/chatApi";
 import { createLangGraphThreadListAdapter } from "@/lib/threadListAdapter";
 
@@ -43,7 +43,7 @@ export function MyAssistant() {
   return (
     <AssistantRuntimeProvider runtime={runtime}>
       <div className="h-dvh">
-        <ChatGPT />
+        <Claude />
       </div>
     </AssistantRuntimeProvider>
   );
