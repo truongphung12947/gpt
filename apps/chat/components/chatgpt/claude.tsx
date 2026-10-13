@@ -97,7 +97,7 @@ const Composer: FC = () => {
 
         <div className="ml-auto flex items-center gap-1">
           <span className="flex h-8 items-center px-2.5 text-sm whitespace-nowrap text-[#5d5d5d] dark:text-[#cdcdcd]">
-            gpt-6-luna
+            gpt-6.1-sol
           </span>
           <ComposerPrimaryAction />
         </div>

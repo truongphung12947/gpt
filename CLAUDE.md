@@ -11,6 +11,9 @@ Authorised by the user for the `chat` and `graph` apps only; confirm before depl
 
 - `chat` (public, Next.js) proxies `/api/*` to `graph` (internal ingress only, LangGraph server) so the OpenAI key is never reachable directly.
 - `graph` runs `langgraph dev` with one replica: threads are in memory and are lost on restart. Persistent storage would need a Postgres-backed LangGraph deployment.
+- The graph's model comes from a LiteLLM proxy when `LITELLM_BASE_URL` is set (HTTPS: `https://mylitellm.eastus2.cloudapp.azure.com`, model `gpt-6.1-sol`),
+  otherwise from OpenAI. Deploy with `LITELLM_BASE_URL`, `LITELLM_MODEL` and a key set; the key is stored as the Container App secret `litellm-api-key`.
+  The user chose to deploy the LiteLLM **admin key** (`LITELLM_ALLOW_ADMIN_KEY=1`); a limited virtual key in `LITELLM_API_KEY` is the safer option and takes priority if set.
 - `OPENAI_API_KEY` is stored as the Container App secret `openai-api-key`. It is read from the env or `apps/graph/.env` (gitignored); with neither, the script only updates the graph image and keeps the stored secret.
 
 ## Deploy a single app
