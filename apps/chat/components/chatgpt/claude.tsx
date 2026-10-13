@@ -30,6 +30,13 @@ import {
 } from "lucide-react";
 import { useState, type FC } from "react";
 import { useAttachmentSrc } from "@/hooks/use-attachment-src";
+import { useModel } from "@/components/model-context";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { MarkdownText } from "@/components/assistant-ui/elements/markdown-text";
 import { CloneThreadShell } from "./clone-thread-shell";
 
@@ -96,9 +103,7 @@ const Composer: FC = () => {
         </ComposerPrimitive.AddAttachment>
 
         <div className="ml-auto flex items-center gap-1">
-          <span className="flex h-8 items-center px-2.5 text-sm whitespace-nowrap text-[#5d5d5d] dark:text-[#cdcdcd]">
-            gpt-6.1-sol
-          </span>
+          <ModelPicker />
           <ComposerPrimaryAction />
         </div>
       </div>
@@ -161,6 +166,37 @@ const ComposerPrimaryAction: FC = () => {
         </ComposerPrimitive.Dictate>
       </AuiIf>
     </>
+  );
+};
+
+const ModelPicker: FC = () => {
+  const { models, selected, select } = useModel();
+  if (!selected) return null;
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        aria-label="Choose model"
+        className="flex h-8 items-center gap-1 rounded-md px-2.5 text-sm whitespace-nowrap text-[#0d0d0d] transition hover:bg-[#0d0d0d]/5 dark:text-[#ececec] dark:hover:bg-white/5"
+      >
+        <span>{selected}</span>
+        <ChevronDownIcon width={16} height={16} className="opacity-60" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="min-w-56">
+        {models.map((m) => (
+          <DropdownMenuItem
+            key={m}
+            onClick={() => select(m)}
+            className="flex items-center gap-3"
+          >
+            <span className="flex size-4 items-center justify-center">
+              {m === selected ? <CheckIcon /> : null}
+            </span>
+            <span className="text-sm">{m}</span>
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 };
 

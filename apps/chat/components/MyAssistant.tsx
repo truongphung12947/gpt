@@ -10,14 +10,43 @@ import {
 import { Claude } from "@/components/chatgpt/claude";
 import { createClient } from "@/lib/chatApi";
 import { createLangGraphThreadListAdapter } from "@/lib/threadListAdapter";
+import { ModelProvider, useModel } from "@/components/model-context";
 
 const ASSISTANT_ID = process.env.NEXT_PUBLIC_LANGGRAPH_ASSISTANT_ID ?? "agent";
 
 export function MyAssistant() {
+  return (
+    <ModelProvider>
+      <Assistant />
+    </ModelProvider>
+  );
+}
+
+function Assistant() {
   const client = useMemo(() => createClient(), []);
+  const { getSelected } = useModel();
   const stream = useMemo(
-    () => unstable_createLangGraphStream({ client, assistantId: ASSISTANT_ID }),
-    [client],
+    () =>
+      unstable_createLangGraphStream({
+        // Every run carries the model picked in the composer.
+        client: {
+          runs: {
+            stream: (threadId: string | null, assistantId, payload) =>
+              client.runs.stream(threadId as string, assistantId, {
+                ...payload,
+                config: {
+                  ...payload?.config,
+                  configurable: {
+                    ...payload?.config?.configurable,
+                    ...(getSelected() ? { model: getSelected() } : {}),
+                  },
+                },
+              }),
+          },
+        },
+        assistantId: ASSISTANT_ID,
+      }),
+    [client, getSelected],
   );
 
   const threadListAdapter = useMemo(
