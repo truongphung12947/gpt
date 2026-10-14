@@ -38,8 +38,8 @@ function Assistant() {
         // Every run carries the model and thinking level picked in the composer.
         client: {
           runs: {
-            stream: (threadId: string | null, assistantId, payload) =>
-              client.runs.stream(threadId as string, assistantId, {
+            stream: (threadId: string | null, assistantId, payload) => {
+              const source = client.runs.stream(threadId as string, assistantId, {
                 ...payload,
                 config: {
                   ...payload?.config,
@@ -48,12 +48,23 @@ function Assistant() {
                     ...getRunConfig(),
                   },
                 },
-              }),
+              });
+              // A request that fails outright (server unreachable) would otherwise end silently:
+              // show it in the error banner and finish the run cleanly.
+              return (async function* () {
+                try {
+                  yield* source;
+                } catch (error) {
+                  if (payload?.signal?.aborted || (error instanceof Error && error.name === "AbortError")) return;
+                  report(error, "transport");
+                }
+              })() as typeof source;
+            },
           },
         },
         assistantId: ASSISTANT_ID,
       }),
-    [client, getRunConfig],
+    [client, getRunConfig, report],
   );
 
   const threadListAdapter = useMemo(

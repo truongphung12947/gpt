@@ -16,8 +16,10 @@ import { ErrorState } from "@/components/assistant-ui/elements/error-state";
 
 type RunErrorState = {
   error: string | null;
-  /** Called by the runtime's error handler. */
-  report: (error: unknown) => void;
+  /** "run": the graph reported it (the server has the message); "transport": the request never completed. */
+  kind: "run" | "transport";
+  /** Called by the runtime's error handler (kind "run") or when the request itself fails ("transport"). */
+  report: (error: unknown, kind?: "run" | "transport") => void;
   /** Called with the thread's running flag; a run that ends without a new error clears the banner. */
   noteRunState: (running: boolean) => void;
   clear: () => void;
@@ -35,11 +37,13 @@ const describe = (error: unknown): string => {
 /** Remembers the last failed run so the thread can show it, even when no reply text exists. */
 export const RunErrorProvider: FC<{ children: ReactNode }> = ({ children }) => {
   const [error, setError] = useState<string | null>(null);
+  const [kind, setKind] = useState<"run" | "transport">("run");
   const failedThisRun = useRef(false);
 
-  const report = useCallback((e: unknown) => {
+  const report = useCallback((e: unknown, k: "run" | "transport" = "run") => {
     failedThisRun.current = true;
-    setError(describe(e));
+    setKind(k);
+    setError(k === "transport" ? "The request didn't reach the server. Check your connection and try again." : describe(e));
   }, []);
   const noteRunState = useCallback((running: boolean) => {
     if (running) failedThisRun.current = false;
@@ -48,8 +52,8 @@ export const RunErrorProvider: FC<{ children: ReactNode }> = ({ children }) => {
   const clear = useCallback(() => setError(null), []);
 
   const value = useMemo(
-    () => ({ error, report, noteRunState, clear }),
-    [error, report, noteRunState, clear],
+    () => ({ error, kind, report, noteRunState, clear }),
+    [error, kind, report, noteRunState, clear],
   );
   return <RunErrorContext.Provider value={value}>{children}</RunErrorContext.Provider>;
 };
@@ -66,7 +70,7 @@ export const useRunError = () => {
  */
 export const RunErrorBanner: FC = () => {
   const aui = useAui();
-  const { error, noteRunState, clear } = useRunError();
+  const { error, kind, noteRunState, clear } = useRunError();
   const isRunning = useAuiState((s) => s.thread.isRunning);
   const threadId = useAuiState((s) => s.threadListItem.externalId);
   // The reply itself already shows its own error banner when it is the one that failed.
@@ -96,7 +100,21 @@ export const RunErrorBanner: FC = () => {
         title="Couldn't get a reply"
         detail={detail.slice(0, 240)}
         retrying={isRunning}
-        onRetry={() => aui.thread().startRun({ parentId: lastUserId })}
+        onRetry={() => {
+          if (kind === "run") {
+            // The server has the message: re-run from it.
+            aui.thread().startRun({ parentId: lastUserId });
+            return;
+          }
+          // The server never saw it: send the last message again.
+          const user = aui.thread().getState().messages.findLast((m) => m.role === "user");
+          if (!user) return;
+          aui.thread().append({
+            role: "user",
+            content: user.content.filter((p) => p.type === "text"),
+            attachments: user.attachments,
+          });
+        }}
         className="max-w-md"
       />
     </div>
