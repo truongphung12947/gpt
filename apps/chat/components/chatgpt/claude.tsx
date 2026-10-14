@@ -112,11 +112,18 @@ const EmptyState: FC = () => {
 };
 
 const Composer: FC = () => {
+  const hasRejectedFile = useAuiState((s) =>
+    s.composer.attachments.some((a) => a.status.type === "incomplete"),
+  );
   return (
     <ComposerPrimitive.Root className="flex w-full flex-col gap-2 rounded-[28px] border border-[#e5e5e5] bg-white px-3.5 pt-3 pb-2.5 focus-within:border-[#d0d0d0] dark:border-transparent dark:bg-[#212121] dark:focus-within:border-transparent">
       <ComposerPrimitive.Input
         placeholder="How can I help you today?"
         rows={1}
+        // Enter must not send while a rejected file is staged; the user removes it first.
+        onKeyDown={(e) => {
+          if (hasRejectedFile && e.key === "Enter") e.preventDefault();
+        }}
         className="block max-h-72 min-h-6 w-full resize-none bg-transparent text-[#0d0d0d] outline-none placeholder:text-[#8e8e8e] dark:text-[#ececec] dark:placeholder:text-[#8e8e8e]"
       />
 
@@ -143,12 +150,16 @@ const Composer: FC = () => {
             {() => <ClaudeAttachment />}
           </ComposerPrimitive.Attachments>
         </div>
+        <AttachmentErrors />
       </AuiIf>
     </ComposerPrimitive.Root>
   );
 };
 
 const ComposerPrimaryAction: FC = () => {
+  const hasRejectedFile = useAuiState((s) =>
+    s.composer.attachments.some((a) => a.status.type === "incomplete"),
+  );
   return (
     <>
       <AuiIf condition={(s) => s.thread.isRunning}>
@@ -175,7 +186,7 @@ const ComposerPrimaryAction: FC = () => {
           !s.composer.isEmpty
         }
       >
-        <ComposerPrimitive.Send className="flex size-8 items-center justify-center rounded-md bg-[#0d0d0d] text-white transition-colors hover:bg-[#2a2a2a] dark:bg-white dark:text-black dark:hover:bg-[#e5e5e5] disabled:pointer-events-none disabled:opacity-50">
+        <ComposerPrimitive.Send disabled={hasRejectedFile} className="flex size-8 items-center justify-center rounded-md bg-[#0d0d0d] text-white transition-colors hover:bg-[#2a2a2a] dark:bg-white dark:text-black dark:hover:bg-[#e5e5e5] disabled:pointer-events-none disabled:opacity-50">
           <ArrowUpIcon width={16} height={16} />
         </ComposerPrimitive.Send>
       </AuiIf>
@@ -457,6 +468,22 @@ const ChatMessage: FC = () => {
         </div>
       </AuiIf>
     </MessagePrimitive.Root>
+  );
+};
+
+// Why a file was rejected, in words; the tiles themselves only show a warning icon.
+const AttachmentErrors: FC = () => {
+  // One string, not an array: selectors must return stable values.
+  const text = useAuiState((s) =>
+    s.composer.attachments
+      .flatMap((a) => (a.status.type === "incomplete" ? [`${a.name}: ${a.status.message ?? "Couldn't attach this file"}`] : []))
+      .join("\n"),
+  );
+  if (!text) return null;
+  return (
+    <p role="alert" className="pt-1.5 text-xs whitespace-pre-line text-red-600 dark:text-red-400">
+      {text}
+    </p>
   );
 };
 
