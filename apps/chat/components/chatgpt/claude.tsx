@@ -8,6 +8,7 @@ import {
   MessagePrimitive,
   ThreadPrimitive,
   groupPartByType,
+  useAui,
   useAuiState,
 } from "@assistant-ui/react";
 import {
@@ -16,7 +17,9 @@ import {
   Calendar as CalendarIcon,
   CheckIcon,
   ChevronDownIcon,
+  FileTextIcon,
   Globe,
+  TriangleAlertIcon,
   ClipboardIcon,
   Code as CodeIcon,
   FolderOpen,
@@ -352,10 +355,23 @@ const ChatMessage: FC = () => {
     <MessagePrimitive.Root className="group/message relative mx-auto flex w-full max-w-3xl flex-col py-2">
       <AuiIf condition={(s) => s.message.role === "user"}>
         <div className="flex flex-col items-end gap-1">
-          <div className="max-w-[80%] rounded-2xl bg-[#0d0d0d] px-4 py-2.5 wrap-break-word whitespace-pre-wrap text-white dark:bg-[#ececec] dark:text-[#0d0d0d]">
+          <div className="flex flex-wrap justify-end gap-2 empty:hidden">
+            <MessagePrimitive.Attachments components={{ Attachment: ClaudeAttachment }} />
             <MessagePrimitive.Parts>
               {({ part }) => {
-                if (part.type === "text") return <MarkdownText />;
+                // Files of a reloaded thread arrive as message parts rather than attachments.
+                if (part.type === "image")
+                  return <SentFileTile name="Image" image={part.image} />;
+                if (part.type === "file")
+                  return <SentFileTile name={part.filename ?? "File"} />;
+                return null;
+              }}
+            </MessagePrimitive.Parts>
+          </div>
+          <div className="max-w-[80%] rounded-2xl bg-[#0d0d0d] px-4 py-2.5 wrap-break-word whitespace-pre-wrap text-white empty:hidden dark:bg-[#ececec] dark:text-[#0d0d0d]">
+            <MessagePrimitive.Parts>
+              {({ part }) => {
+                if (part.type === "text" && part.text.trim() !== "") return <MarkdownText />;
                 return null;
               }}
             </MessagePrimitive.Parts>
@@ -444,34 +460,67 @@ const ChatMessage: FC = () => {
   );
 };
 
+const SentFileTile: FC<{ name: string; image?: string }> = ({ name, image }) => (
+  <div
+    className="overflow-hidden rounded-lg border border-[#e5e5e5] dark:border-white/15"
+    style={{ width: "80px", height: "80px" }}
+    title={name}
+  >
+    {image ? (
+      <img className="h-full w-full object-cover" alt={name} src={image} />
+    ) : (
+      <div className="flex h-full w-full flex-col items-center justify-center gap-1 bg-white px-1.5 text-center text-[#5d5d5d] dark:bg-black dark:text-[#cdcdcd]">
+        <FileTextIcon className="size-5" />
+        <span className="line-clamp-2 w-full text-[10px] leading-tight break-all">{name}</span>
+      </div>
+    )}
+  </div>
+);
+
 const ClaudeAttachment: FC = () => {
+  const aui = useAui();
+  // Sent messages show the same tile, without the remove button.
+  const isComposer = aui.attachment.source !== "message";
   const isImage = useAuiState((s) => s.attachment.type === "image");
+  const name = useAuiState((s) => s.attachment.name);
+  const error = useAuiState((s) =>
+    s.attachment.status.type === "incomplete" ? (s.attachment.status.message ?? "Couldn't attach this file") : undefined,
+  );
   const src = useAttachmentSrc();
 
   return (
-    <AttachmentPrimitive.Root className="group/thumbnail relative">
+    <AttachmentPrimitive.Root className="group/thumbnail relative" title={error ?? name}>
       <div
-        className="overflow-hidden rounded-lg border border-[#e5e5e5] dark:border-white/15"
+        className={cn(
+          "overflow-hidden rounded-lg border",
+          error
+            ? "border-red-500/60 bg-red-500/5"
+            : "border-[#e5e5e5] dark:border-white/15",
+        )}
         style={{ width: "80px", height: "80px" }}
       >
-        {isImage && src ? (
-          <img
-            className="h-full w-full object-cover"
-            alt="Attachment"
-            src={src}
-          />
+        {isImage && src && !error ? (
+          <img className="h-full w-full object-cover" alt={name} src={src} />
         ) : (
-          <div className="flex h-full w-full items-center justify-center bg-white text-[#5d5d5d] dark:bg-black dark:text-[#cdcdcd]">
-            <AttachmentPrimitive.unstable_Thumb className="text-xs" />
+          <div
+            className={cn(
+              "flex h-full w-full flex-col items-center justify-center gap-1 px-1.5 text-center",
+              error ? "text-red-600 dark:text-red-400" : "bg-white text-[#5d5d5d] dark:bg-black dark:text-[#cdcdcd]",
+            )}
+          >
+            {error ? <TriangleAlertIcon className="size-5" /> : <FileTextIcon className="size-5" />}
+            <span className="line-clamp-2 w-full text-[10px] leading-tight break-all">{name}</span>
           </div>
         )}
       </div>
-      <AttachmentPrimitive.Remove
-        className="absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center rounded-full bg-[#0d0d0d] text-white opacity-0 transition-opacity group-focus-within/thumbnail:opacity-100 group-hover/thumbnail:opacity-100 hover:bg-[#2a2a2a] dark:bg-white dark:text-[#0d0d0d] dark:hover:bg-[#cdcdcd]"
-        aria-label="Remove attachment"
-      >
-        <XIcon width={12} height={12} />
-      </AttachmentPrimitive.Remove>
+      {isComposer && (
+        <AttachmentPrimitive.Remove
+          className="absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center rounded-full bg-[#0d0d0d] text-white opacity-0 transition-opacity group-focus-within/thumbnail:opacity-100 group-hover/thumbnail:opacity-100 hover:bg-[#2a2a2a] dark:bg-white dark:text-[#0d0d0d] dark:hover:bg-[#cdcdcd]"
+          aria-label="Remove attachment"
+        >
+          <XIcon width={12} height={12} />
+        </AttachmentPrimitive.Remove>
+      )}
     </AttachmentPrimitive.Root>
   );
 };

@@ -10,6 +10,7 @@ import {
 } from "@assistant-ui/react-langgraph";
 import { Claude } from "@/components/chatgpt/claude";
 import { createClient } from "@/lib/chatApi";
+import { fileAttachmentAdapter } from "@/lib/attachmentAdapter";
 import { createLangGraphThreadListAdapter } from "@/lib/threadListAdapter";
 import { ModelProvider, useModel } from "@/components/model-context";
 
@@ -58,6 +59,7 @@ function Assistant() {
   const runtime = useLangGraphRuntime({
     unstable_allowCancellation: true,
     unstable_threadListAdapter: threadListAdapter,
+    adapters: { attachments: fileAttachmentAdapter },
     stream,
     load: async (externalId) => {
       const state = await client.threads.getState<{

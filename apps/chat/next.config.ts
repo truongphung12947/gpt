@@ -8,6 +8,11 @@ const nextConfig: NextConfig = {
   // gzip in the Next server buffers the proxied LangGraph event stream until it ends,
   // so replies would appear all at once instead of streaming.
   compress: false,
+  experimental: {
+    // Attachments travel as base64 in the chat request, which Next proxies to the graph.
+    // The default 10 MB limit would cut off two or three files.
+    proxyClientMaxBodySize: "40mb",
+  },
   async rewrites() {
     return langgraphUrl
       ? [{ source: "/api/:path*", destination: `${langgraphUrl}/:path*` }]
