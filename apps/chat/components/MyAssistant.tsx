@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo } from "react";
-import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { useMemo, useState } from "react";
+import { AssistantRuntimeProvider, type ThreadSuggestion } from "@assistant-ui/react";
 import {
   unstable_createLangGraphStream,
   useLangGraphRuntime,
@@ -13,6 +13,7 @@ import { createClient } from "@/lib/chatApi";
 import { fileAttachmentAdapter } from "@/lib/attachmentAdapter";
 import { createLangGraphThreadListAdapter } from "@/lib/threadListAdapter";
 import { ModelProvider, useModel } from "@/components/model-context";
+import { SuggestionsSync } from "@/components/suggestions-sync";
 
 const ASSISTANT_ID = process.env.NEXT_PUBLIC_LANGGRAPH_ASSISTANT_ID ?? "agent";
 
@@ -56,8 +57,11 @@ function Assistant() {
     [client],
   );
 
+  const [suggestions, setSuggestions] = useState<ThreadSuggestion[]>([]);
+
   const runtime = useLangGraphRuntime({
     unstable_allowCancellation: true,
+    suggestions,
     unstable_threadListAdapter: threadListAdapter,
     adapters: { attachments: fileAttachmentAdapter },
     stream,
@@ -76,6 +80,7 @@ function Assistant() {
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
+      <SuggestionsSync onChange={setSuggestions} />
       <div className="h-dvh">
         <Claude />
       </div>

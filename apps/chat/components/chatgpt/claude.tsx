@@ -16,10 +16,7 @@ import {
   AudioLines,
   Calendar as CalendarIcon,
   CheckIcon,
-  ChevronDownIcon,
-  FileTextIcon,
   Globe,
-  TriangleAlertIcon,
   ClipboardIcon,
   Code as CodeIcon,
   FolderOpen,
@@ -33,8 +30,7 @@ import {
   ThumbsUp,
   XIcon,
 } from "lucide-react";
-import { useMemo, useState, type FC } from "react";
-import { useAttachmentSrc } from "@/hooks/use-attachment-src";
+import { useMemo, type FC } from "react";
 import {
   Reasoning,
   ReasoningContent,
@@ -46,10 +42,15 @@ import {
   StreamingText,
   type Segment,
 } from "@/components/assistant-ui/elements/streaming-text";
+import { ErrorState } from "@/components/assistant-ui/elements/error-state";
+import { ThreadFollowupSuggestions } from "@/components/assistant-ui/elements/follow-up-suggestions.aui";
+import { ComposerAttachmentChip } from "@/components/assistant-ui/elements/composer";
+import { useMessageError } from "@assistant-ui/core/react";
 import { WebSearch } from "@/components/assistant-ui/elements/web-search";
 import { TypingIndicator } from "@/components/assistant-ui/elements/typing-indicator";
 import { cn } from "@/lib/utils";
 import { ContextRing } from "@/components/context-usage";
+import { formatBytes } from "@/lib/attachmentAdapter";
 import { useModel } from "@/components/model-context";
 import {
   formatContextWindow,
@@ -84,6 +85,7 @@ export const Claude: FC = () => {
             <AssistantTyping />
 
             <ThreadPrimitive.ViewportFooter className="sticky bottom-0 mx-auto mt-auto w-full max-w-3xl bg-linear-to-b from-transparent via-white/85 to-white pt-4 pb-2 dark:via-black/85 dark:to-black">
+              <ThreadFollowupSuggestions />
               <Composer />
               <p className="pt-2 text-center text-xs text-[#5d5d5d] dark:text-[#afafaf]">
                 AI can make mistakes. Please double-check responses.
@@ -116,7 +118,8 @@ const Composer: FC = () => {
     s.composer.attachments.some((a) => a.status.type === "incomplete"),
   );
   return (
-    <ComposerPrimitive.Root className="flex w-full flex-col gap-2 rounded-[28px] border border-[#e5e5e5] bg-white px-3.5 pt-3 pb-2.5 focus-within:border-[#d0d0d0] dark:border-transparent dark:bg-[#212121] dark:focus-within:border-transparent">
+    <ComposerPrimitive.AttachmentDropzone asChild>
+    <ComposerPrimitive.Root className="flex w-full flex-col gap-2 rounded-[28px] border border-[#e5e5e5] bg-white px-3.5 pt-3 pb-2.5 focus-within:border-[#d0d0d0] data-[dragging=true]:border-dashed data-[dragging=true]:border-blue-500/60 data-[dragging=true]:bg-blue-500/[0.04] dark:border-transparent dark:bg-[#212121] dark:focus-within:border-transparent">
       <ComposerPrimitive.Input
         placeholder="How can I help you today?"
         rows={1}
@@ -150,9 +153,9 @@ const Composer: FC = () => {
             {() => <ClaudeAttachment />}
           </ComposerPrimitive.Attachments>
         </div>
-        <AttachmentErrors />
       </AuiIf>
     </ComposerPrimitive.Root>
+    </ComposerPrimitive.AttachmentDropzone>
   );
 };
 
@@ -297,6 +300,23 @@ const ModeTabs: FC = () => {
   );
 };
 
+// A failed reply: what went wrong, with the element's retry path (re-runs from the user's message).
+const MessageError: FC = () => {
+  const aui = useAui();
+  const error = useMessageError();
+  const retrying = useAuiState((s) => s.thread.isRunning);
+  const detail = String(error).slice(0, 240);
+  return (
+    <ErrorState
+      title="Couldn't get a reply"
+      detail={detail}
+      retrying={retrying}
+      onRetry={() => aui.message.reload()}
+      className="mt-2"
+    />
+  );
+};
+
 // Word-by-word reveal with a caret while a part is still streaming.
 const StreamingPart: FC<{ text: string }> = ({ text }) => {
   const segments = useMemo<Segment[]>(() => [{ text }], [text]);
@@ -371,10 +391,8 @@ const ChatMessage: FC = () => {
             <MessagePrimitive.Parts>
               {({ part }) => {
                 // Files of a reloaded thread arrive as message parts rather than attachments.
-                if (part.type === "image")
-                  return <SentFileTile name="Image" image={part.image} />;
-                if (part.type === "file")
-                  return <SentFileTile name={part.filename ?? "File"} />;
+                if (part.type === "image") return <SentFileChip name="Image" image />;
+                if (part.type === "file") return <SentFileChip name={part.filename ?? "File"} />;
                 return null;
               }}
             </MessagePrimitive.Parts>
@@ -441,6 +459,9 @@ const ChatMessage: FC = () => {
                 }
               }}
             </MessagePrimitive.GroupedParts>
+            <MessagePrimitive.Error>
+              <MessageError />
+            </MessagePrimitive.Error>
           </div>
           <ActionBarPrimitive.Root className="mt-2 flex items-center gap-0.5 opacity-0 transition-opacity group-focus-within/message:opacity-100 group-hover/message:opacity-100">
             <ActionBarPrimitive.Copy className={messageActionButtonClassName}>
@@ -471,79 +492,50 @@ const ChatMessage: FC = () => {
   );
 };
 
-// Why a file was rejected, in words; the tiles themselves only show a warning icon.
-const AttachmentErrors: FC = () => {
-  // One string, not an array: selectors must return stable values.
-  const text = useAuiState((s) =>
-    s.composer.attachments
-      .flatMap((a) => (a.status.type === "incomplete" ? [`${a.name}: ${a.status.message ?? "Couldn't attach this file"}`] : []))
-      .join("\n"),
-  );
-  if (!text) return null;
-  return (
-    <p role="alert" className="pt-1.5 text-xs whitespace-pre-line text-red-600 dark:text-red-400">
-      {text}
-    </p>
-  );
-};
+const typeLabel = (name: string, contentType?: string) =>
+  (name.split(".").pop() || contentType?.split("/").pop() || "file").toUpperCase();
 
-const SentFileTile: FC<{ name: string; image?: string }> = ({ name, image }) => (
-  <div
-    className="overflow-hidden rounded-lg border border-[#e5e5e5] dark:border-white/15"
-    style={{ width: "80px", height: "80px" }}
-    title={name}
-  >
-    {image ? (
-      <img className="h-full w-full object-cover" alt={name} src={image} />
-    ) : (
-      <div className="flex h-full w-full flex-col items-center justify-center gap-1 bg-white px-1.5 text-center text-[#5d5d5d] dark:bg-black dark:text-[#cdcdcd]">
-        <FileTextIcon className="size-5" />
-        <span className="line-clamp-2 w-full text-[10px] leading-tight break-all">{name}</span>
-      </div>
-    )}
-  </div>
+// Sent files get the same chip, minus the remove button and the "done" check mark.
+const SENT_CHIP = "[&>span:last-of-type]:hidden";
+
+const SentFileChip: FC<{ name: string; image?: boolean }> = ({ name, image }) => (
+  <ComposerAttachmentChip
+    attachment={{ name, meta: typeLabel(name), state: "done", kind: image ? "image" : "text" }}
+    className={SENT_CHIP}
+  />
 );
 
+// A staged or sent file, drawn with the assistant-ui composer attachment chip.
 const ClaudeAttachment: FC = () => {
   const aui = useAui();
-  // Sent messages show the same tile, without the remove button.
   const isComposer = aui.attachment.source !== "message";
-  const isImage = useAuiState((s) => s.attachment.type === "image");
   const name = useAuiState((s) => s.attachment.name);
-  const error = useAuiState((s) =>
-    s.attachment.status.type === "incomplete" ? (s.attachment.status.message ?? "Couldn't attach this file") : undefined,
+  const kind = useAuiState((s) => (s.attachment.type === "image" ? "image" : "text"));
+  const state = useAuiState((s) => {
+    const t = s.attachment.status.type;
+    return t === "running" ? "uploading" : t === "incomplete" ? "error" : "done";
+  });
+  const progress = useAuiState((s) =>
+    s.attachment.status.type === "running" ? s.attachment.status.progress : 0,
   );
-  const src = useAttachmentSrc();
+  const meta = useAuiState((s) => {
+    const { status, file, contentType, name } = s.attachment;
+    if (status.type === "incomplete") return status.message ?? "Couldn't attach this file";
+    return file ? formatBytes(file.size) : typeLabel(name, contentType);
+  });
 
   return (
-    <AttachmentPrimitive.Root className="group/thumbnail relative" title={error ?? name}>
-      <div
-        className={cn(
-          "overflow-hidden rounded-lg border",
-          error
-            ? "border-red-500/60 bg-red-500/5"
-            : "border-[#e5e5e5] dark:border-white/15",
-        )}
-        style={{ width: "80px", height: "80px" }}
-      >
-        {isImage && src && !error ? (
-          <img className="h-full w-full object-cover" alt={name} src={src} />
-        ) : (
-          <div
-            className={cn(
-              "flex h-full w-full flex-col items-center justify-center gap-1 px-1.5 text-center",
-              error ? "text-red-600 dark:text-red-400" : "bg-white text-[#5d5d5d] dark:bg-black dark:text-[#cdcdcd]",
-            )}
-          >
-            {error ? <TriangleAlertIcon className="size-5" /> : <FileTextIcon className="size-5" />}
-            <span className="line-clamp-2 w-full text-[10px] leading-tight break-all">{name}</span>
-          </div>
-        )}
-      </div>
-      {isComposer && (
+    <AttachmentPrimitive.Root className="relative">
+      <ComposerAttachmentChip
+        attachment={{ name, meta, state, progress, kind }}
+        onRemove={isComposer ? () => aui.attachment.remove() : undefined}
+        className={cn(!isComposer && SENT_CHIP, "max-w-72")}
+      />
+      {/* The chip has no remove button in its error state, but a rejected file must be removable. */}
+      {isComposer && state === "error" && (
         <AttachmentPrimitive.Remove
-          className="absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center rounded-full bg-[#0d0d0d] text-white opacity-0 transition-opacity group-focus-within/thumbnail:opacity-100 group-hover/thumbnail:opacity-100 hover:bg-[#2a2a2a] dark:bg-white dark:text-[#0d0d0d] dark:hover:bg-[#cdcdcd]"
-          aria-label="Remove attachment"
+          aria-label={`Remove ${name}`}
+          className="absolute end-2.5 top-1/2 flex size-5 -translate-y-1/2 items-center justify-center rounded-full text-[#5d5d5d] hover:bg-[#0d0d0d]/10 dark:text-[#cdcdcd] dark:hover:bg-white/10"
         >
           <XIcon width={12} height={12} />
         </AttachmentPrimitive.Remove>
