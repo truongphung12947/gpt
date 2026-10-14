@@ -3,12 +3,11 @@
 # Requires: az logged in, AZURE_RESOURCE_GROUP set.
 # OPENAI_API_KEY comes from the environment or apps/graph/.env; when neither has it,
 # an already-deployed graph keeps its stored secret and only the image is updated.
-# Sign-in (Microsoft Entra ID, allowlist). Values come from the environment; any that are
-# missing are reused from the already-deployed chat/graph apps. Nothing is deployed unless
-# all of them resolve, because the graph rejects requests from a chat app without sign-in.
-#   AUTH_MICROSOFT_ENTRA_ID_ID, AUTH_MICROSOFT_ENTRA_ID_SECRET, AUTH_MICROSOFT_ENTRA_ID_ISSUER
-#   (https://login.microsoftonline.com/<tenant-id>/v2.0), ALLOWED_EMAILS (comma separated)
-#   AUTH_SECRET and GRAPH_AUTH_SECRET are generated on the first deploy and then reused.
+# Sign-in is email + password for the people in AUTH_USERS (entries made with
+# `node scripts/hash-password.mjs <email>`, comma separated). Missing values are reused from the
+# deployed chat app. Nothing is deployed unless AUTH_USERS resolves, because the graph rejects
+# requests from a chat app without sign-in. AUTH_SECRET and GRAPH_AUTH_SECRET are generated on
+# the first deploy and then reused.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -23,18 +22,12 @@ fi
 export OPENAI_API_KEY="${OPENAI_API_KEY:-}"
 
 existing_secret() { az containerapp secret show -n "$1" -g "$RG" --secret-name "$2" --query value -o tsv 2>/dev/null || true; }
-existing_env() { az containerapp show -n chat -g "$RG" --query "properties.template.containers[0].env[?name=='$1'].value | [0]" -o tsv 2>/dev/null || true; }
-for v in AUTH_MICROSOFT_ENTRA_ID_ID AUTH_MICROSOFT_ENTRA_ID_ISSUER ALLOWED_EMAILS; do
-  [ -n "${!v:-}" ] || export "$v=$(existing_env "$v")"
-done
-[ -n "${AUTH_MICROSOFT_ENTRA_ID_SECRET:-}" ] || export AUTH_MICROSOFT_ENTRA_ID_SECRET="$(existing_secret chat entra-client-secret)"
+[ -n "${AUTH_USERS:-}" ] || export AUTH_USERS="$(existing_secret chat auth-users)"
 [ -n "${AUTH_SECRET:-}" ] || export AUTH_SECRET="$(existing_secret chat auth-secret)"
 [ -n "${AUTH_SECRET:-}" ] || export AUTH_SECRET="$(openssl rand -base64 32)"
 [ -n "${GRAPH_AUTH_SECRET:-}" ] || export GRAPH_AUTH_SECRET="$(existing_secret graph graph-auth-secret)"
 [ -n "${GRAPH_AUTH_SECRET:-}" ] || export GRAPH_AUTH_SECRET="$(openssl rand -base64 32)"
-for v in AUTH_MICROSOFT_ENTRA_ID_ID AUTH_MICROSOFT_ENTRA_ID_SECRET AUTH_MICROSOFT_ENTRA_ID_ISSUER ALLOWED_EMAILS; do
-  [ -n "${!v:-}" ] || { echo "$v is not set (and not stored on the chat app); see the header of this script" >&2; exit 1; }
-done
+[ -n "${AUTH_USERS:-}" ] || { echo "AUTH_USERS is not set (and not stored on the chat app); see the header of this script" >&2; exit 1; }
 
 # --- graph (internal ingress, single replica: threads live in memory) ---
 az acr build --no-logs -r "$ACR" -t "graph:$TAG" "$ROOT/apps/graph" >/dev/null
@@ -81,14 +74,11 @@ CF="$(mktemp)"; chmod 600 "$CF"
 python3 - "$CF" <<'PY'
 import json, os, sys
 e = os.environ
-secrets = {"auth-secret": e["AUTH_SECRET"], "entra-client-secret": e["AUTH_MICROSOFT_ENTRA_ID_SECRET"],
+secrets = {"auth-secret": e["AUTH_SECRET"], "auth-users": e["AUTH_USERS"],
            "graph-auth-secret": e["GRAPH_AUTH_SECRET"]}
 env = [{"name": "AUTH_SECRET", "secretRef": "auth-secret"},
-       {"name": "AUTH_MICROSOFT_ENTRA_ID_SECRET", "secretRef": "entra-client-secret"},
+       {"name": "AUTH_USERS", "secretRef": "auth-users"},
        {"name": "GRAPH_AUTH_SECRET", "secretRef": "graph-auth-secret"},
-       {"name": "AUTH_MICROSOFT_ENTRA_ID_ID", "value": e["AUTH_MICROSOFT_ENTRA_ID_ID"]},
-       {"name": "AUTH_MICROSOFT_ENTRA_ID_ISSUER", "value": e["AUTH_MICROSOFT_ENTRA_ID_ISSUER"]},
-       {"name": "ALLOWED_EMAILS", "value": e["ALLOWED_EMAILS"]},
        {"name": "AUTH_TRUST_HOST", "value": "true"}]
 json.dump({"$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
   "contentVersion": "1.0.0.0",
