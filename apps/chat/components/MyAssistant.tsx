@@ -11,7 +11,7 @@ import {
 import { Claude } from "@/components/chatgpt/claude";
 import { createClient } from "@/lib/chatApi";
 import { fileAttachmentAdapter } from "@/lib/attachmentAdapter";
-import { createLangGraphThreadListAdapter } from "@/lib/threadListAdapter";
+import { createChatsThreadListAdapter } from "@/lib/threadListAdapter";
 import { ModelProvider, useModel } from "@/components/model-context";
 import { RunErrorProvider, useRunError } from "@/components/run-error";
 import { SuggestionsSync } from "@/components/suggestions-sync";
@@ -67,10 +67,7 @@ function Assistant() {
     [client, getRunConfig, report],
   );
 
-  const threadListAdapter = useMemo(
-    () => createLangGraphThreadListAdapter(client),
-    [client],
-  );
+  const threadListAdapter = useMemo(() => createChatsThreadListAdapter(), []);
 
   const [suggestions, setSuggestions] = useState<ThreadSuggestion[]>([]);
 

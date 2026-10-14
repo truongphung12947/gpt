@@ -1,6 +1,8 @@
 import type { NextRequest } from "next/server";
 import { auth } from "@/auth";
 import { signGraphToken } from "@/lib/graphToken";
+import { UUID, getChat, touchChat } from "@/lib/chats";
+import { ensureGraphThread } from "@/lib/graph";
 
 // Streams the request to the internal LangGraph server on behalf of the signed-in user.
 // The graph only trusts the signed token added here and scopes every thread to its owner.
@@ -16,6 +18,22 @@ const handler = async (req: NextRequest, ctx: { params: Promise<{ path: string[]
   if (!base) return Response.json({ detail: "Graph URL not configured" }, { status: 500 });
 
   const { path } = await ctx.params;
+
+  // Chats are created and listed through /api/chats (Postgres). Only conversations that
+  // exist there are served, and the graph's thread record is recreated if it was lost.
+  if (path[0] === "threads") {
+    const id = path[1];
+    if (!id || !UUID.test(id)) {
+      return Response.json({ detail: "Use /api/chats" }, { status: 404 });
+    }
+    if (!(await getChat(session.user.id, id))) {
+      return Response.json({ detail: "Not found" }, { status: 404 });
+    }
+    await ensureGraphThread(session.user, id);
+    if (req.method === "POST" && path[2] === "runs") {
+      void touchChat(session.user.id, id).catch(() => {});
+    }
+  }
   const headers = new Headers();
   req.headers.forEach((v, k) => {
     if (!SKIP_REQUEST.has(k.toLowerCase())) headers.set(k, v);

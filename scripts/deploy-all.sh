@@ -8,6 +8,10 @@
 # deployed chat app. Nothing is deployed unless AUTH_USERS resolves, because the graph rejects
 # requests from a chat app without sign-in. AUTH_SECRET and GRAPH_AUTH_SECRET are generated on
 # the first deploy and then reused.
+# Chats are stored in Azure Database for PostgreSQL (infra/postgres.bicep, created on the first
+# deploy, ~$13/month for the smallest size). Its connection string is kept as the secret
+# `database-url` on both apps (and, as a backup, in ~/.gpt-database-url, mode 600); set
+# DATABASE_URL to use another database.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -29,6 +33,22 @@ existing_secret() { az containerapp secret show -n "$1" -g "$RG" --secret-name "
 [ -n "${GRAPH_AUTH_SECRET:-}" ] || export GRAPH_AUTH_SECRET="$(openssl rand -base64 32)"
 [ -n "${AUTH_USERS:-}" ] || { echo "AUTH_USERS is not set (and not stored on the chat app); see the header of this script" >&2; exit 1; }
 
+# --- Postgres (durable chats) ---
+DB_FILE="$HOME/.gpt-database-url"
+[ -n "${DATABASE_URL:-}" ] || export DATABASE_URL="$(existing_secret chat database-url)"
+[ -n "${DATABASE_URL:-}" ] || { [ ! -f "$DB_FILE" ] || export DATABASE_URL="$(cat "$DB_FILE")"; }
+if [ -z "${DATABASE_URL:-}" ]; then
+  PG_NAME="gpt-pg-$(printf %s "${AZURE_SUBSCRIPTION_ID:-}/$RG" | sha1sum | cut -c1-8)"
+  if az postgres flexible-server show -g "$RG" -n "$PG_NAME" >/dev/null 2>&1; then
+    echo "Postgres server $PG_NAME exists but its connection string is not stored; set DATABASE_URL" >&2; exit 1
+  fi
+  PG_PASS="$(openssl rand -hex 24)"
+  PG_FQDN="$(az deployment group create -g "$RG" -f "$ROOT/infra/postgres.bicep" \
+    -p serverName="$PG_NAME" administratorLoginPassword="$PG_PASS" --query properties.outputs.fqdn.value -o tsv)"
+  export DATABASE_URL="postgresql://chatadmin:${PG_PASS}@${PG_FQDN}:5432/chat?sslmode=require"
+  (umask 077; printf %s "$DATABASE_URL" > "$DB_FILE")
+fi
+
 # --- graph (internal ingress, single replica: threads live in memory) ---
 az acr build --no-logs -r "$ACR" -t "graph:$TAG" "$ROOT/apps/graph" >/dev/null
 GRAPH_IMAGE="$LOGIN/graph:$TAG"
@@ -45,8 +65,10 @@ if [ -n "${OPENAI_API_KEY:-}" ] || [ -n "$LITELLM_KEY" ]; then  # (secrets are o
   PF="$(mktemp)"; trap 'rm -f "$PF"' EXIT; chmod 600 "$PF"
   python3 - "$PF" <<'PY'
 import json, os, sys
-secrets, env = {"graph-auth-secret": os.environ["GRAPH_AUTH_SECRET"]}, [
-    {"name": "GRAPH_AUTH_SECRET", "secretRef": "graph-auth-secret"}]
+secrets, env = {"graph-auth-secret": os.environ["GRAPH_AUTH_SECRET"],
+                "database-url": os.environ["DATABASE_URL"]}, [
+    {"name": "GRAPH_AUTH_SECRET", "secretRef": "graph-auth-secret"},
+    {"name": "DATABASE_URL", "secretRef": "database-url"}]
 if os.environ.get("OPENAI_API_KEY"):
     secrets["openai-api-key"] = os.environ["OPENAI_API_KEY"]
     env.append({"name": "OPENAI_API_KEY", "secretRef": "openai-api-key"})
@@ -75,10 +97,11 @@ python3 - "$CF" <<'PY'
 import json, os, sys
 e = os.environ
 secrets = {"auth-secret": e["AUTH_SECRET"], "auth-users": e["AUTH_USERS"],
-           "graph-auth-secret": e["GRAPH_AUTH_SECRET"]}
+           "graph-auth-secret": e["GRAPH_AUTH_SECRET"], "database-url": e["DATABASE_URL"]}
 env = [{"name": "AUTH_SECRET", "secretRef": "auth-secret"},
        {"name": "AUTH_USERS", "secretRef": "auth-users"},
        {"name": "GRAPH_AUTH_SECRET", "secretRef": "graph-auth-secret"},
+       {"name": "DATABASE_URL", "secretRef": "database-url"},
        {"name": "AUTH_TRUST_HOST", "value": "true"}]
 json.dump({"$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
   "contentVersion": "1.0.0.0",

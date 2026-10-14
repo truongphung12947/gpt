@@ -11,5 +11,8 @@
   "env": ".env",
   "auth": {
     "path": "./auth.py:auth"
+  },
+  "checkpointer": {
+    "path": "./checkpointer.py:generate_checkpointer"
   }
 }
