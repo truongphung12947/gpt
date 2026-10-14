@@ -85,9 +85,13 @@ export const Claude: FC = () => {
             </ThreadPrimitive.Messages>
             <AssistantTyping />
             <RunErrorBanner />
+            {/* Part of the scrolling content (under the last reply), not the sticky footer,
+                so it scrolls with the conversation and never covers the text. */}
+            <div className="mx-auto w-full max-w-3xl pt-2 pb-6 empty:hidden">
+              <ThreadFollowupSuggestions />
+            </div>
 
             <ThreadPrimitive.ViewportFooter className="sticky bottom-0 mx-auto mt-auto w-full max-w-3xl bg-linear-to-b from-transparent via-white/85 to-white pt-4 pb-2 dark:via-black/85 dark:to-black">
-              <ThreadFollowupSuggestions />
               <Composer />
               <p className="pt-2 text-center text-xs text-[#5d5d5d] dark:text-[#afafaf]">
                 AI can make mistakes. Please double-check responses.
