@@ -13,6 +13,7 @@ import { createClient } from "@/lib/chatApi";
 import { fileAttachmentAdapter } from "@/lib/attachmentAdapter";
 import { createLangGraphThreadListAdapter } from "@/lib/threadListAdapter";
 import { ModelProvider, useModel } from "@/components/model-context";
+import { RunErrorProvider, useRunError } from "@/components/run-error";
 import { SuggestionsSync } from "@/components/suggestions-sync";
 
 const ASSISTANT_ID = process.env.NEXT_PUBLIC_LANGGRAPH_ASSISTANT_ID ?? "agent";
@@ -20,7 +21,9 @@ const ASSISTANT_ID = process.env.NEXT_PUBLIC_LANGGRAPH_ASSISTANT_ID ?? "agent";
 export function MyAssistant() {
   return (
     <ModelProvider>
-      <Assistant />
+      <RunErrorProvider>
+        <Assistant />
+      </RunErrorProvider>
     </ModelProvider>
   );
 }
@@ -28,6 +31,7 @@ export function MyAssistant() {
 function Assistant() {
   const client = useMemo(() => createClient(), []);
   const { getRunConfig } = useModel();
+  const { report } = useRunError();
   const stream = useMemo(
     () =>
       unstable_createLangGraphStream({
@@ -62,6 +66,16 @@ function Assistant() {
   const runtime = useLangGraphRuntime({
     unstable_allowCancellation: true,
     suggestions,
+    eventHandlers: { onError: report },
+    // Lets the runtime fork the thread from an earlier message, which regenerating a reply,
+    // editing a message and retrying a failed run all need.
+    getCheckpointId: async (threadId, parentMessages) => {
+      const last = parentMessages.at(-1);
+      if (!last?.id) return null;
+      const history = await client.threads.getHistory<{ messages: LangChainMessage[] }>(threadId);
+      const state = history.find((s) => s.values.messages?.at(-1)?.id === last.id);
+      return state?.checkpoint.checkpoint_id ?? null;
+    },
     unstable_threadListAdapter: threadListAdapter,
     adapters: { attachments: fileAttachmentAdapter },
     stream,

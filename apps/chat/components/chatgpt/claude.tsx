@@ -42,6 +42,7 @@ import {
   StreamingText,
   type Segment,
 } from "@/components/assistant-ui/elements/streaming-text";
+import { RunErrorBanner } from "@/components/run-error";
 import { ErrorState } from "@/components/assistant-ui/elements/error-state";
 import { ThreadFollowupSuggestions } from "@/components/assistant-ui/elements/follow-up-suggestions.aui";
 import { ComposerAttachmentChip } from "@/components/assistant-ui/elements/composer";
@@ -83,6 +84,7 @@ export const Claude: FC = () => {
               {() => <ChatMessage />}
             </ThreadPrimitive.Messages>
             <AssistantTyping />
+            <RunErrorBanner />
 
             <ThreadPrimitive.ViewportFooter className="sticky bottom-0 mx-auto mt-auto w-full max-w-3xl bg-linear-to-b from-transparent via-white/85 to-white pt-4 pb-2 dark:via-black/85 dark:to-black">
               <ThreadFollowupSuggestions />
