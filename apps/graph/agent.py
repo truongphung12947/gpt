@@ -124,11 +124,14 @@ def call_model(state: State, config: RunnableConfig):
         requested = configurable.get("reasoning_effort")
         effort = requested if requested in EFFORTS else "medium"
 
+    # The composer's "Search" switch. Built-in web search runs on the provider's side; it is only
+    # offered where the proxy says it works, and when on the model is required to use it.
+    web_search = configurable.get("web_search") is True and bool(info and info["supports_web_search"])
+
     def build(summary: bool):
         model = get_model(name, effort, summary)
-        # Built-in web search runs on the provider's side; offer it where the proxy says it works.
-        if info and info["supports_web_search"]:
-            model = model.bind_tools([{"type": "web_search"}])
+        if web_search:
+            model = model.bind_tools([{"type": "web_search"}], tool_choice={"type": "web_search"})
         return model
 
     message_id = f"ai-{uuid.uuid4().hex}"

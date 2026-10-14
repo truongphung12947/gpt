@@ -16,6 +16,7 @@ import {
   Calendar as CalendarIcon,
   CheckIcon,
   ChevronDownIcon,
+  Globe,
   ClipboardIcon,
   Code as CodeIcon,
   FolderOpen,
@@ -44,6 +45,7 @@ import {
 } from "@/components/assistant-ui/elements/streaming-text";
 import { WebSearch } from "@/components/assistant-ui/elements/web-search";
 import { TypingIndicator } from "@/components/assistant-ui/elements/typing-indicator";
+import { cn } from "@/lib/utils";
 import { ContextRing } from "@/components/context-usage";
 import { useModel } from "@/components/model-context";
 import {
@@ -122,6 +124,8 @@ const Composer: FC = () => {
         >
           <PlusIcon width={16} height={16} />
         </ComposerPrimitive.AddAttachment>
+
+        <SearchToggle />
 
         <div className="ml-auto flex items-center gap-1">
           <ModelPicker />
@@ -220,6 +224,35 @@ const ModelPicker: FC = () => {
       <ModelSelectorTrigger variant="ghost" size="sm" aria-label="Choose model" />
       <ModelSelectorContent align="end" searchable={options.length > 6} />
     </ModelSelectorRoot>
+  );
+};
+
+// "Search" switch: when on, the model must answer using a web search.
+const SearchToggle: FC = () => {
+  const { models, selected, webSearch, setWebSearch } = useModel();
+  const supported = models.find((m) => m.id === selected)?.supports_web_search ?? false;
+  if (!selected) return null;
+  const on = webSearch && supported;
+
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      aria-label="Search the web"
+      disabled={!supported}
+      title={supported ? "Search the web" : "This model can't search the web"}
+      onClick={() => setWebSearch(!webSearch)}
+      className={cn(
+        "flex h-8 items-center gap-1.5 rounded-full border px-3 text-sm whitespace-nowrap transition-colors disabled:cursor-not-allowed disabled:opacity-40",
+        on
+          ? "border-blue-500/40 bg-blue-500/10 text-blue-600 dark:text-blue-400"
+          : "border-transparent text-[#5d5d5d] hover:bg-[#0d0d0d]/5 dark:text-[#cdcdcd] dark:hover:bg-white/5",
+      )}
+    >
+      <Globe className="size-4" />
+      <span>Search</span>
+    </button>
   );
 };
 
