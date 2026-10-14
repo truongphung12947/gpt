@@ -1,5 +1,7 @@
 import os
 import uuid
+
+from openai import BadRequestError
 from contextvars import ContextVar
 from typing import Annotated
 from urllib.parse import urlparse
@@ -13,7 +15,9 @@ from langgraph.graph.ui import AnyUIMessage, push_ui_message, ui_message_reducer
 from models import default_model, find_model
 
 EFFORTS = {"low", "medium", "high"}
-_models: dict[tuple[str, str | None], ChatOpenAI] = {}
+_models: dict[tuple[str, str | None, bool], ChatOpenAI] = {}
+# Models whose provider rejects `reasoning.summary` (learned from the first refusal).
+_no_summary: set[str] = set()
 
 # Id shared by every streamed chunk and the final message of one model call, so clients
 # merge them into a single message and can attach UI (web search) to it.
@@ -70,9 +74,9 @@ class ChatOpenAIStableId(ChatOpenAI):
             yield chunk
 
 
-def get_model(name: str, effort: str | None = None) -> ChatOpenAI:
+def get_model(name: str, effort: str | None = None, summary: bool = True) -> ChatOpenAI:
     """Use a LiteLLM proxy (OpenAI-compatible) when configured, else OpenAI directly."""
-    key = (name, effort)
+    key = (name, effort, summary)
     if key not in _models:
         # Always the Responses API; reasoning models also stream readable reasoning summaries.
         kwargs: dict = {
@@ -82,7 +86,7 @@ def get_model(name: str, effort: str | None = None) -> ChatOpenAI:
             "output_version": "responses/v1",
         }
         if effort:
-            kwargs["reasoning"] = {"effort": effort, "summary": "detailed"}
+            kwargs["reasoning"] = {"effort": effort, **({"summary": "detailed"} if summary else {})}
         base_url = os.environ.get("LITELLM_BASE_URL")
         if base_url:
             kwargs["base_url"] = base_url.rstrip("/") + "/v1"
@@ -120,15 +124,24 @@ def call_model(state: State, config: RunnableConfig):
         requested = configurable.get("reasoning_effort")
         effort = requested if requested in EFFORTS else "medium"
 
-    model = get_model(name, effort)
-    # Built-in web search runs on the provider's side; offer it where the proxy says it works.
-    if info and info["supports_web_search"]:
-        model = model.bind_tools([{"type": "web_search"}])
+    def build(summary: bool):
+        model = get_model(name, effort, summary)
+        # Built-in web search runs on the provider's side; offer it where the proxy says it works.
+        if info and info["supports_web_search"]:
+            model = model.bind_tools([{"type": "web_search"}])
+        return model
 
     message_id = f"ai-{uuid.uuid4().hex}"
     token = _message_id.set(message_id)
     try:
-        response = model.invoke(state["messages"], config)
+        try:
+            response = build(name not in _no_summary).invoke(state["messages"], config)
+        except BadRequestError as err:
+            # Some providers (e.g. GLM) support reasoning but not reasoning summaries.
+            if "summary" not in str(err) or name in _no_summary:
+                raise
+            _no_summary.add(name)
+            response = build(False).invoke(state["messages"], config)
     finally:
         _message_id.reset(token)
     response.id = message_id
