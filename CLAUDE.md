@@ -32,6 +32,12 @@ Authorised by the user for the `chat` and `graph` apps only; confirm before depl
   and passes them to the runtime's `suggestions` option; the assistant-ui `ThreadFollowupSuggestions` element shows them above the composer and sends one on click. Not generated when merely reopening a thread.
 - The chat has a model selector. The graph serves `GET /models` (custom route in `apps/graph/webapp.py`, proxied at `/api/models`) from LiteLLM's model list,
   optionally narrowed by `LITELLM_MODELS` (comma-separated). `/models` also returns each model's context window and reasoning support (from LiteLLM `/model/info`). The chosen model and thinking level (`low|medium|high`, only for reasoning models) are sent per run as `config.configurable.model` / `reasoning_effort` and validated server-side.
+- **Sign-in and private chats** (Microsoft Entra ID, allowlist only): Auth.js v5 in `apps/chat` (`auth.ts`, `proxy.ts` guards pages, `/signin` page, `UserMenu` sign-out). Only emails / sign-in names listed in `ALLOWED_EMAILS` get in; others see "Not authorized".
+  `/api/*` is no longer a Next rewrite: `app/api/[...path]/route.ts` checks the session and streams the request to the graph with an HMAC-signed bearer token (`lib/graphToken.ts`, secret `GRAPH_AUTH_SECRET` shared with the graph).
+  The graph (`apps/graph/auth.py`, `langgraph.json` `auth`) verifies the token, stamps every thread with `metadata.owner` and filters every thread/run call by it (verified: other users get 404, forged/expired/missing token 401, owner cannot be overwritten). Assistants are shared.
+  Custom routes (`/models`, `/suggestions`) are not covered by the graph auth; they are only reachable through the chat proxy because the graph has internal ingress only.
+  `scripts/deploy-all.sh` refuses to deploy until `AUTH_MICROSOFT_ENTRA_ID_ID`, `AUTH_MICROSOFT_ENTRA_ID_SECRET`, `AUTH_MICROSOFT_ENTRA_ID_ISSUER` (`https://login.microsoftonline.com/<tenant>/v2.0`) and `ALLOWED_EMAILS` resolve (env, else reused from the deployed chat app); `AUTH_SECRET` and `GRAPH_AUTH_SECRET` are generated once and stored as Container App secrets.
+  Entra app registration (done by the user): redirect URI `https://<chat fqdn>/api/auth/callback/microsoft-entra-id`.
 - `OPENAI_API_KEY` is stored as the Container App secret `openai-api-key`. It is read from the env or `apps/graph/.env` (gitignored); with neither, the script only updates the graph image and keeps the stored secret.
 
 ## Deploy a single app

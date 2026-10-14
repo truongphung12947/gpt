@@ -14,7 +14,9 @@ RUN npm run build
 
 FROM node:22-alpine
 WORKDIR /app
-ENV NODE_ENV=production PORT=8080 HOSTNAME=0.0.0.0 NEXT_TELEMETRY_DISABLED=1
+ARG LANGGRAPH_INTERNAL_URL
+ENV LANGGRAPH_INTERNAL_URL=$LANGGRAPH_INTERNAL_URL \
+    NODE_ENV=production PORT=8080 HOSTNAME=0.0.0.0 NEXT_TELEMETRY_DISABLED=1
 COPY --from=build /app/.next/standalone ./
 COPY --from=build /app/.next/static ./.next/static
 COPY --from=build /app/public ./public
