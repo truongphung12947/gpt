@@ -15,6 +15,7 @@ downloads/
 eggs/
 .eggs/
 lib/
+!apps/chat/lib/
 lib64/
 parts/
 sdist/

@@ -4,6 +4,7 @@ import {
   ActionBarPrimitive,
   AuiIf,
   AttachmentPrimitive,
+  BranchPickerPrimitive,
   ComposerPrimitive,
   MessagePrimitive,
   ThreadPrimitive,
@@ -12,17 +13,15 @@ import {
   useAuiState,
 } from "@assistant-ui/react";
 import {
+  ArrowDownIcon,
   ArrowUpIcon,
   AudioLines,
-  Calendar as CalendarIcon,
   CheckIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
   Globe,
   ClipboardIcon,
-  Code as CodeIcon,
-  FolderOpen,
-  GraduationCap,
   PencilIcon,
-  PenLine,
   PlusIcon,
   RefreshCwIcon,
   Sparkle,
@@ -50,6 +49,7 @@ import { useMessageError } from "@assistant-ui/core/react";
 import { WebSearch } from "@/components/assistant-ui/elements/web-search";
 import { TypingIndicator } from "@/components/assistant-ui/elements/typing-indicator";
 import { cn } from "@/lib/utils";
+import { TooltipIconButton } from "@/components/assistant-ui/elements/tooltip-icon-button";
 import { ContextRing } from "@/components/context-usage";
 import { formatBytes } from "@/lib/attachmentAdapter";
 import { useModel } from "@/components/model-context";
@@ -74,8 +74,13 @@ export const Claude: FC = () => {
   return (
     <CloneThreadShell>
       <ThreadPrimitive.Root className="flex h-full flex-col items-stretch bg-white text-[#0d0d0d] dark:bg-black dark:text-[#ececec]">
-        <AuiIf condition={(s) => s.thread.isEmpty}>
+        <AuiIf condition={(s) => s.thread.isEmpty && !s.thread.isLoading}>
           <EmptyState />
+        </AuiIf>
+
+        {/* A saved thread is still loading its history. */}
+        <AuiIf condition={(s) => s.thread.isEmpty && s.thread.isLoading}>
+          <HistorySkeleton />
         </AuiIf>
 
         <AuiIf condition={(s) => !s.thread.isEmpty}>
@@ -92,6 +97,17 @@ export const Claude: FC = () => {
             </div>
 
             <ThreadPrimitive.ViewportFooter className="sticky bottom-0 mx-auto mt-auto w-full max-w-3xl bg-linear-to-b from-transparent via-white/85 to-white pt-4 pb-2 dark:via-black/85 dark:to-black">
+              <ThreadPrimitive.ScrollToBottom
+                render={
+                  <TooltipIconButton
+                    tooltip="Scroll to bottom"
+                    variant="outline"
+                    className="absolute -top-10 left-1/2 z-10 -translate-x-1/2 rounded-full bg-white p-4 disabled:invisible dark:bg-[#212121]"
+                  />
+                }
+              >
+                <ArrowDownIcon />
+              </ThreadPrimitive.ScrollToBottom>
               <Composer />
               <p className="pt-2 text-center text-xs text-[#5d5d5d] dark:text-[#afafaf]">
                 AI can make mistakes. Please double-check responses.
@@ -108,16 +124,28 @@ const EmptyState: FC = () => {
   return (
     <div className="flex grow flex-col items-center justify-center px-4">
       <div className="mx-auto flex w-full max-w-2xl flex-col items-stretch gap-5">
-        <p className="flex items-center justify-center gap-3 text-3xl text-[#0d0d0d] sm:text-4xl dark:text-[#ececec]">
+        <h1 className="flex items-center justify-center gap-3 text-3xl text-[#0d0d0d] sm:text-4xl dark:text-[#ececec]">
           <Sparkle className="size-7 fill-[#0d0d0d] text-[#0d0d0d] dark:fill-white dark:text-white" />
           <span>How can I help you today?</span>
-        </p>
+        </h1>
         <Composer />
-        <ModeTabs />
       </div>
     </div>
   );
 };
+
+const HistorySkeleton: FC = () => (
+  <div
+    role="status"
+    aria-label="Loading conversation"
+    className="mx-auto flex w-full max-w-3xl grow flex-col gap-4 px-4 pt-16"
+  >
+    <div className="ml-auto h-10 w-2/5 animate-pulse rounded-2xl bg-[#0d0d0d]/10 dark:bg-white/10" />
+    <div className="h-4 w-4/5 animate-pulse rounded bg-[#0d0d0d]/10 dark:bg-white/10" />
+    <div className="h-4 w-3/5 animate-pulse rounded bg-[#0d0d0d]/10 dark:bg-white/10" />
+    <div className="h-4 w-2/3 animate-pulse rounded bg-[#0d0d0d]/10 dark:bg-white/10" />
+  </div>
+);
 
 const Composer: FC = () => {
   const hasRejectedFile = useAuiState((s) =>
@@ -136,6 +164,9 @@ const Composer: FC = () => {
       </AuiIf>
       <ComposerPrimitive.Input
         placeholder="How can I help you today?"
+        aria-label="Message"
+        // The empty-state and in-thread composers are different instances; focus the new one.
+        autoFocus
         rows={1}
         // Enter must not send while a rejected file is staged; the user removes it first.
         onKeyDown={(e) => {
@@ -173,13 +204,17 @@ const ComposerPrimaryAction: FC = () => {
   return (
     <>
       <AuiIf condition={(s) => s.thread.isRunning}>
-        <ComposerPrimitive.Cancel className="flex size-8 items-center justify-center rounded-md bg-[#0d0d0d] text-white transition-colors hover:bg-[#2a2a2a] dark:bg-white dark:text-black dark:hover:bg-[#e5e5e5]">
+        <ComposerPrimitive.Cancel aria-label="Stop generating" className="flex size-8 items-center justify-center rounded-md bg-[#0d0d0d] text-white transition-colors hover:bg-[#2a2a2a] dark:bg-white dark:text-black dark:hover:bg-[#e5e5e5]">
           <div className="size-2.5 rounded-[2px] bg-current" />
         </ComposerPrimitive.Cancel>
       </AuiIf>
 
       <AuiIf
-        condition={(s) => !s.thread.isRunning && s.composer.dictation != null}
+        condition={(s) =>
+          s.thread.capabilities.dictation &&
+          !s.thread.isRunning &&
+          s.composer.dictation != null
+        }
       >
         <ComposerPrimitive.StopDictation
           className="flex size-8 items-center justify-center rounded-md bg-[#0d0d0d] text-white transition-colors hover:bg-[#2a2a2a] dark:bg-white dark:text-black dark:hover:bg-[#e5e5e5]"
@@ -196,13 +231,14 @@ const ComposerPrimaryAction: FC = () => {
           !s.composer.isEmpty
         }
       >
-        <ComposerPrimitive.Send disabled={hasRejectedFile} className="flex size-8 items-center justify-center rounded-md bg-[#0d0d0d] text-white transition-colors hover:bg-[#2a2a2a] dark:bg-white dark:text-black dark:hover:bg-[#e5e5e5] disabled:pointer-events-none disabled:opacity-50">
+        <ComposerPrimitive.Send aria-label="Send message" disabled={hasRejectedFile} className="flex size-8 items-center justify-center rounded-md bg-[#0d0d0d] text-white transition-colors hover:bg-[#2a2a2a] dark:bg-white dark:text-black dark:hover:bg-[#e5e5e5] disabled:pointer-events-none disabled:opacity-50">
           <ArrowUpIcon width={16} height={16} />
         </ComposerPrimitive.Send>
       </AuiIf>
 
       <AuiIf
         condition={(s) =>
+          s.thread.capabilities.dictation &&
           !s.thread.isRunning &&
           s.composer.dictation == null &&
           s.composer.isEmpty
@@ -280,33 +316,6 @@ const SearchToggle: FC = () => {
   );
 };
 
-const ModeTabs: FC = () => {
-  const tabs = [
-    { label: "Write", Icon: PenLine },
-    { label: "Learn", Icon: GraduationCap },
-    { label: "Code", Icon: CodeIcon },
-    { label: "From Drive", Icon: FolderOpen },
-    { label: "From Calendar", Icon: CalendarIcon },
-  ];
-
-  return (
-    <div className="flex flex-wrap items-center justify-center gap-2">
-      {tabs.map(({ label, Icon }) => (
-        <button
-          key={label}
-          type="button"
-          aria-hidden="true"
-          tabIndex={-1}
-          className="flex h-8 items-center gap-1.5 rounded-lg border border-[#e5e5e5] bg-transparent px-3 text-sm whitespace-nowrap text-[#0d0d0d] transition-colors hover:bg-black/[0.05] dark:border-white/15 dark:text-[#ececec] dark:hover:bg-white/10"
-        >
-          <Icon className="size-3.5 text-[#5d5d5d] dark:text-[#cdcdcd]" />
-          <span>{label}</span>
-        </button>
-      ))}
-    </div>
-  );
-};
-
 // A failed reply: what went wrong, with the element's retry path (re-runs from the user's message).
 const MessageError: FC = () => {
   const aui = useAui();
@@ -325,10 +334,22 @@ const MessageError: FC = () => {
 };
 
 // Word-by-word reveal with a caret while a part is still streaming.
-const StreamingPart: FC<{ text: string }> = ({ text }) => {
+const StreamingPart: FC<{ text: string; reasoning?: boolean }> = ({ text, reasoning }) => {
   const segments = useMemo<Segment[]>(() => [{ text }], [text]);
   const count = useMemo(() => text.split(" ").length, [text]);
-  return <StreamingText segments={segments} count={count} streaming />;
+  return (
+    <StreamingText
+      segments={segments}
+      count={count}
+      streaming
+      // The element defaults (max-w-sm, min-h-[8.5rem], text-sm) are for a demo card; match the
+      // finished message so nothing jumps when markdown replaces it.
+      className={cn(
+        "max-w-none min-h-0 whitespace-pre-wrap",
+        reasoning ? "text-sm" : "text-base leading-[1.65rem]",
+      )}
+    />
+  );
 };
 
 // Shown from sending a message until the model produces its first words, which can take a
@@ -389,6 +410,8 @@ const reasoningSeconds = (timing: { startedAt: number; completedAt?: number } | 
     : Math.round((timing.completedAt - timing.startedAt) / 1000);
 
 const ChatMessage: FC = () => {
+  const isEditing = useAuiState((s) => s.message.composer.isEditing);
+  if (isEditing) return <EditComposer />;
   return (
     <MessagePrimitive.Root className="group/message relative mx-auto flex w-full max-w-3xl flex-col py-2">
       <AuiIf condition={(s) => s.message.role === "user"}>
@@ -412,11 +435,12 @@ const ChatMessage: FC = () => {
               }}
             </MessagePrimitive.Parts>
           </div>
-          <ActionBarPrimitive.Root className="-mt-px flex items-center gap-0.5 opacity-0 transition-opacity group-focus-within/message:opacity-100 group-hover/message:opacity-100">
-            <ActionBarPrimitive.Edit className={messageActionButtonClassName}>
+          <ActionBarPrimitive.Root className="-mt-px flex items-center gap-0.5 opacity-0 transition-opacity group-focus-within/message:opacity-100 group-hover/message:opacity-100 [@media(hover:none)]:opacity-100">
+            <BranchPicker />
+            <ActionBarPrimitive.Edit aria-label="Edit message" className={messageActionButtonClassName}>
               <PencilIcon width={16} height={16} />
             </ActionBarPrimitive.Edit>
-            <ActionBarPrimitive.Copy className={messageActionButtonClassName}>
+            <ActionBarPrimitive.Copy aria-label="Copy message" className={messageActionButtonClassName}>
               <AuiIf condition={(s) => s.message.isCopied}>
                 <CheckIcon />
               </AuiIf>
@@ -451,7 +475,7 @@ const ChatMessage: FC = () => {
                   }
                   case "reasoning":
                     return part.status.type === "running" ? (
-                      <StreamingPart text={part.text} />
+                      <StreamingPart text={part.text} reasoning />
                     ) : (
                       <Reasoning {...part} />
                     );
@@ -470,8 +494,10 @@ const ChatMessage: FC = () => {
               <MessageError />
             </MessagePrimitive.Error>
           </div>
-          <ActionBarPrimitive.Root className="mt-2 flex items-center gap-0.5 opacity-0 transition-opacity group-focus-within/message:opacity-100 group-hover/message:opacity-100">
-            <ActionBarPrimitive.Copy className={messageActionButtonClassName}>
+          {/* Hidden while a reply is streaming; always shown on the last reply, on hover for older ones. */}
+          <ActionBarPrimitive.Root hideWhenRunning autohide="not-last" className="mt-2 flex items-center gap-0.5">
+            <BranchPicker />
+            <ActionBarPrimitive.Copy aria-label="Copy response" className={messageActionButtonClassName}>
               <AuiIf condition={(s) => s.message.isCopied}>
                 <CheckIcon />
               </AuiIf>
@@ -479,17 +505,22 @@ const ChatMessage: FC = () => {
                 <ClipboardIcon width={16} height={16} />
               </AuiIf>
             </ActionBarPrimitive.Copy>
-            <ActionBarPrimitive.FeedbackPositive
-              className={messageActionButtonClassName}
-            >
-              <ThumbsUp className="size-4" />
-            </ActionBarPrimitive.FeedbackPositive>
-            <ActionBarPrimitive.FeedbackNegative
-              className={messageActionButtonClassName}
-            >
-              <ThumbsDown className="size-4" />
-            </ActionBarPrimitive.FeedbackNegative>
-            <ActionBarPrimitive.Reload className={messageActionButtonClassName}>
+            {/* Rating needs a feedback adapter on the runtime; without one the buttons do nothing. */}
+            <AuiIf condition={(s) => s.thread.capabilities.feedback}>
+              <ActionBarPrimitive.FeedbackPositive
+                aria-label="Good response"
+                className={cn(messageActionButtonClassName, "data-[submitted=true]:text-[#0d0d0d] dark:data-[submitted=true]:text-white")}
+              >
+                <ThumbsUp className="size-4" />
+              </ActionBarPrimitive.FeedbackPositive>
+              <ActionBarPrimitive.FeedbackNegative
+                aria-label="Bad response"
+                className={cn(messageActionButtonClassName, "data-[submitted=true]:text-[#0d0d0d] dark:data-[submitted=true]:text-white")}
+              >
+                <ThumbsDown className="size-4" />
+              </ActionBarPrimitive.FeedbackNegative>
+            </AuiIf>
+            <ActionBarPrimitive.Reload aria-label="Regenerate response" className={messageActionButtonClassName}>
               <RefreshCwIcon width={16} height={16} />
             </ActionBarPrimitive.Reload>
           </ActionBarPrimitive.Root>
@@ -498,6 +529,49 @@ const ChatMessage: FC = () => {
     </MessagePrimitive.Root>
   );
 };
+
+// Edit mode of a user message: replaces the bubble with an input; sending creates a new branch.
+const EditComposer: FC = () => (
+  <MessagePrimitive.Root className="mx-auto flex w-full max-w-3xl flex-col py-2">
+    <ComposerPrimitive.Root className="ml-auto flex w-full max-w-[85%] flex-col rounded-2xl border border-[#e5e5e5] bg-white focus-within:border-[#d0d0d0] dark:border-transparent dark:bg-[#212121]">
+      <ComposerPrimitive.Input
+        aria-label="Edit message"
+        autoFocus
+        className="min-h-14 w-full resize-none bg-transparent px-4 pt-3 pb-1 text-base text-[#0d0d0d] outline-none dark:text-[#ececec]"
+      />
+      <div className="mx-2.5 mb-2.5 flex items-center gap-1.5 self-end">
+        <ComposerPrimitive.Cancel className="h-8 rounded-full px-3 text-sm text-[#5d5d5d] hover:bg-[#0d0d0d]/5 dark:text-[#cdcdcd] dark:hover:bg-white/5">
+          Cancel
+        </ComposerPrimitive.Cancel>
+        <ComposerPrimitive.Send className="h-8 rounded-full bg-[#0d0d0d] px-3 text-sm text-white hover:bg-[#2a2a2a] dark:bg-white dark:text-black dark:hover:bg-[#e5e5e5]">
+          Update
+        </ComposerPrimitive.Send>
+      </div>
+    </ComposerPrimitive.Root>
+  </MessagePrimitive.Root>
+);
+
+// Appears when a message has several versions (after Regenerate or Edit).
+const BranchPicker: FC = () => (
+  <BranchPickerPrimitive.Root
+    hideWhenSingleBranch
+    className="mr-1 inline-flex items-center text-xs text-[#5d5d5d] dark:text-[#cdcdcd]"
+  >
+    <BranchPickerPrimitive.Previous asChild>
+      <TooltipIconButton tooltip="Previous version" aria-label="Previous version" className="size-8">
+        <ChevronLeftIcon className="size-4" />
+      </TooltipIconButton>
+    </BranchPickerPrimitive.Previous>
+    <span aria-live="polite">
+      <BranchPickerPrimitive.Number />/<BranchPickerPrimitive.Count />
+    </span>
+    <BranchPickerPrimitive.Next asChild>
+      <TooltipIconButton tooltip="Next version" aria-label="Next version" className="size-8">
+        <ChevronRightIcon className="size-4" />
+      </TooltipIconButton>
+    </BranchPickerPrimitive.Next>
+  </BranchPickerPrimitive.Root>
+);
 
 const typeLabel = (name: string, contentType?: string) =>
   (name.split(".").pop() || contentType?.split("/").pop() || "file").toUpperCase();
