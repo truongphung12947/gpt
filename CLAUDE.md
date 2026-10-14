@@ -56,7 +56,7 @@ The ~120 MB Bicep download can be cut off by the proxy; if so, `rm ~/.azure/bin/
 - Confirm before deleting resources or deploying anything beyond the shared platform and the requested app.
 
 ## assistant-ui conventions (audited against the element docs)
-- Message branches: `BranchPicker` in both action rows; Edit swaps the bubble for `EditComposer` (`isEditing`), Regenerate/Edit make branches via `getCheckpointId`. `ThreadPrimitive.ScrollToBottom` sits in the viewport footer. Assistant action bar uses `hideWhenRunning autohide="not-last"`; user bar is visible on touch (`hover:none`).
+- Message branches: `BranchPicker` in both action rows; Edit swaps the bubble for `EditComposer` (`isEditing`), Regenerate/Edit make branches via `getCheckpointId`. `ThreadPrimitive.ScrollToBottom` sits in the viewport footer. Assistant action bar stays in the layout (opacity toggle, no content shift): invisible while the last reply streams, visible on the last reply, hover/focus for older ones; user bar is visible on touch (`hover:none`).
 - Feedback buttons and Dictate only render when the runtime has the capability (`thread.capabilities.feedback/dictation`); neither adapter is configured today. The home screen has no mode chips (they did nothing).
 - `StreamingPart` overrides the StreamingText demo defaults (`max-w-none min-h-0 whitespace-pre-wrap`, same text size as the final markdown) so nothing jumps when the part completes. Links in replies open in a new tab. Icon buttons carry `aria-label`s.
 - The thread list adapter fetches all pages (cap 500) because the sidebar has no "load more". Archived chats are hidden and cannot be restored from the UI.

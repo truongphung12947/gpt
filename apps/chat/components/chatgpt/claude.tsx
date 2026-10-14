@@ -411,6 +411,8 @@ const reasoningSeconds = (timing: { startedAt: number; completedAt?: number } | 
 
 const ChatMessage: FC = () => {
   const isEditing = useAuiState((s) => s.message.composer.isEditing);
+  const isLast = useAuiState((s) => s.message.isLast);
+  const isRunning = useAuiState((s) => s.thread.isRunning);
   if (isEditing) return <EditComposer />;
   return (
     <MessagePrimitive.Root className="group/message relative mx-auto flex w-full max-w-3xl flex-col py-2">
@@ -494,8 +496,16 @@ const ChatMessage: FC = () => {
               <MessageError />
             </MessagePrimitive.Error>
           </div>
-          {/* Hidden while a reply is streaming; always shown on the last reply, on hover for older ones. */}
-          <ActionBarPrimitive.Root hideWhenRunning autohide="not-last" className="mt-2 flex items-center gap-0.5">
+          {/* Always in the layout (no shift on hover): invisible while this reply streams, visible on the
+              last reply, on hover/focus for older ones and on touch screens. */}
+          <ActionBarPrimitive.Root
+            className={cn(
+              "mt-2 flex items-center gap-0.5 transition-opacity",
+              isLast
+                ? isRunning && "invisible"
+                : "opacity-0 group-focus-within/message:opacity-100 group-hover/message:opacity-100 [@media(hover:none)]:opacity-100",
+            )}
+          >
             <BranchPicker />
             <ActionBarPrimitive.Copy aria-label="Copy response" className={messageActionButtonClassName}>
               <AuiIf condition={(s) => s.message.isCopied}>
