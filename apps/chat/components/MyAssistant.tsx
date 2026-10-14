@@ -6,6 +6,7 @@ import {
   unstable_createLangGraphStream,
   useLangGraphRuntime,
   type LangChainMessage,
+  type UIMessage,
 } from "@assistant-ui/react-langgraph";
 import { Claude } from "@/components/chatgpt/claude";
 import { createClient } from "@/lib/chatApi";
@@ -61,9 +62,11 @@ function Assistant() {
     load: async (externalId) => {
       const state = await client.threads.getState<{
         messages: LangChainMessage[];
+        ui?: UIMessage[];
       }>(externalId);
       return {
         messages: state.values.messages,
+        uiMessages: state.values.ui,
         interrupts: state.tasks[0]?.interrupts,
       };
     },

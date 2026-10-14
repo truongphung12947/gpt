@@ -17,6 +17,10 @@ Authorised by the user for the `chat` and `graph` apps only; confirm before depl
 - The graph **always uses the OpenAI Responses API** (`use_responses_api=True`, `output_version="responses/v1"`), by the user's decision. Reasoning models get
   `reasoning={"effort": <low|medium|high>, "summary": "detailed"}` so the UI can show the model's reasoning summary (`detailed` was reliable; `auto` sometimes returned none).
   Easy questions legitimately produce no summary. The chat renders reasoning with the assistant-ui Reasoning element.
+- **Web search**: models that LiteLLM flags `supports_web_search` get the Responses API built-in `web_search` tool (`bind_tools`). The runtime drops `web_search_call` blocks and
+  text annotations, so `apps/graph/agent.py` reports the search as a LangGraph custom UI message (`push_ui_message("web_search", ...)`, state key `ui`, attached to the reply by
+  message id: first `searching` with queries, then `done` with cited sources). The chat renders it with the assistant-ui Web search element (`WebSearchCard` in `claude.tsx`);
+  `load` in `MyAssistant.tsx` returns `ui` so the card survives reloading a thread. Every chunk of one model call shares one message id (`ChatOpenAIStableId`), which this depends on.
 - The chat has a model selector. The graph serves `GET /models` (custom route in `apps/graph/webapp.py`, proxied at `/api/models`) from LiteLLM's model list,
   optionally narrowed by `LITELLM_MODELS` (comma-separated). `/models` also returns each model's context window and reasoning support (from LiteLLM `/model/info`). The chosen model and thinking level (`low|medium|high`, only for reasoning models) are sent per run as `config.configurable.model` / `reasoning_effort` and validated server-side.
 - `OPENAI_API_KEY` is stored as the Container App secret `openai-api-key`. It is read from the env or `apps/graph/.env` (gitignored); with neither, the script only updates the graph image and keeps the stored secret.

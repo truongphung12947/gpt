@@ -42,6 +42,7 @@ import {
   StreamingText,
   type Segment,
 } from "@/components/assistant-ui/elements/streaming-text";
+import { WebSearch } from "@/components/assistant-ui/elements/web-search";
 import { TypingIndicator } from "@/components/assistant-ui/elements/typing-indicator";
 import { ContextRing } from "@/components/context-usage";
 import { useModel } from "@/components/model-context";
@@ -265,13 +266,42 @@ const AssistantTyping: FC = () => {
     if (!last) return false;
     if (last.role === "user") return true;
     return !last.parts.some(
-      (p) => (p.type === "text" || p.type === "reasoning") && p.text.trim() !== "",
+      (p) =>
+        ((p.type === "text" || p.type === "reasoning") && p.text.trim() !== "") ||
+        (p.type === "data" && p.name === "web_search"),
     );
   });
   if (!waiting) return null;
   return (
     <div className="mx-auto w-full max-w-3xl py-3">
       <TypingIndicator variant="bare" />
+    </div>
+  );
+};
+
+type WebSearchData = {
+  status: "searching" | "done";
+  queries: string[];
+  sources: { title: string; url: string; domain: string }[];
+};
+
+// The graph reports the web search it ran as a custom UI message attached to the reply.
+const WebSearchCard: FC = () => {
+  const data = useAuiState((s) => {
+    const part = s.message.parts.find((p) => p.type === "data" && p.name === "web_search");
+    return part?.type === "data" ? (part.data as WebSearchData) : undefined;
+  });
+  if (!data || data.queries.length === 0) return null;
+  const [first, ...rest] = data.queries;
+  return (
+    <div className="mb-3">
+      <WebSearch
+        query={rest.length ? `${first} +${rest.length} more` : first!}
+        results={data.sources}
+        visibleResults={data.sources.length}
+        searching={data.status === "searching"}
+        cycle={0}
+      />
     </div>
   );
 };
@@ -316,6 +346,7 @@ const ChatMessage: FC = () => {
       <AuiIf condition={(s) => s.message.role === "assistant"}>
         <div className="flex flex-col">
           <div className="prose prose-claude leading-[1.65rem] wrap-break-word text-[#0d0d0d] dark:text-[#ececec]">
+            <WebSearchCard />
             <MessagePrimitive.GroupedParts groupBy={messageGroupBy}>
               {({ part, children }) => {
                 switch (part.type) {
