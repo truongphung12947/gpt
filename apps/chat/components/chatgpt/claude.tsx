@@ -122,6 +122,14 @@ const Composer: FC = () => {
   return (
     <ComposerPrimitive.AttachmentDropzone asChild>
     <ComposerPrimitive.Root className="flex w-full flex-col gap-2 rounded-[28px] border border-[#e5e5e5] bg-white px-3.5 pt-3 pb-2.5 focus-within:border-[#d0d0d0] data-[dragging=true]:border-dashed data-[dragging=true]:border-blue-500/60 data-[dragging=true]:bg-blue-500/[0.04] dark:border-transparent dark:bg-[#212121] dark:focus-within:border-transparent">
+      {/* Staged files sit above the text box, like the assistant-ui composer example. */}
+      <AuiIf condition={(s) => s.composer.attachments.length > 0}>
+        <div className="flex flex-row flex-wrap gap-2">
+          <ComposerPrimitive.Attachments>
+            {() => <ClaudeAttachment />}
+          </ComposerPrimitive.Attachments>
+        </div>
+      </AuiIf>
       <ComposerPrimitive.Input
         placeholder="How can I help you today?"
         rows={1}
@@ -149,13 +157,6 @@ const Composer: FC = () => {
         </div>
       </div>
 
-      <AuiIf condition={(s) => s.composer.attachments.length > 0}>
-        <div className="-mx-1 -mb-1 flex flex-row gap-2 overflow-x-auto pt-1">
-          <ComposerPrimitive.Attachments>
-            {() => <ClaudeAttachment />}
-          </ComposerPrimitive.Attachments>
-        </div>
-      </AuiIf>
     </ComposerPrimitive.Root>
     </ComposerPrimitive.AttachmentDropzone>
   );
