@@ -27,9 +27,18 @@ type ModelState = {
   /** The composer's "Search" switch (only takes effect for models that can search). */
   webSearch: boolean;
   setWebSearch: (on: boolean) => void;
+  /** Composer settings as stored per chat; `key` changes whenever any of them does. */
+  settings: ChatSettings;
+  settingsKey: string;
+  /** Loads a chat's stored settings into the composer (not remembered as the browser default). Returns what is now in effect. */
+  applySettings: (saved: ChatSettings) => ChatSettings;
   /** Latest model, thinking level and search switch, for code that runs outside React renders. */
   getRunConfig: () => { model?: string; reasoning_effort?: string; web_search?: boolean };
 };
+
+export type ChatSettings = { model?: string; effort?: "low" | "medium" | "high"; webSearch?: boolean };
+
+export const settingsKey = (s: ChatSettings) => JSON.stringify([s.model ?? null, s.effort ?? null, !!s.webSearch]);
 
 const ModelContext = createContext<ModelState | null>(null);
 const STORAGE_KEY = "chat:model";
@@ -105,6 +114,27 @@ export function ModelProvider({ children }: { children: ReactNode }) {
     } catch {}
   }, []);
 
+  const applySettings = useCallback((saved: ChatSettings): ChatSettings => {
+    // Ignore a model that no longer exists (or while the list is still loading).
+    if (saved.model && modelsRef.current.some((m) => m.id === saved.model)) {
+      selectedRef.current = saved.model;
+      setSelected(saved.model);
+    }
+    if (saved.effort) {
+      effortRef.current = saved.effort;
+      setEffortState(saved.effort);
+    }
+    if (typeof saved.webSearch === "boolean") {
+      webSearchRef.current = saved.webSearch;
+      setWebSearchState(saved.webSearch);
+    }
+    return {
+      model: selectedRef.current,
+      effort: effortRef.current as ChatSettings["effort"],
+      webSearch: webSearchRef.current,
+    };
+  }, []);
+
   const getRunConfig = useCallback(() => {
     const model = selectedRef.current;
     const info = modelsRef.current.find((m) => m.id === model);
@@ -115,10 +145,17 @@ export function ModelProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const value = useMemo(
-    () => ({ models, selected, select, effort, setEffort, webSearch, setWebSearch, getRunConfig }),
-    [models, selected, select, effort, setEffort, webSearch, setWebSearch, getRunConfig],
-  );
+  const value = useMemo(() => {
+    const settings: ChatSettings = {
+      model: selected,
+      effort: effort as ChatSettings["effort"],
+      webSearch,
+    };
+    return {
+      models, selected, select, effort, setEffort, webSearch, setWebSearch,
+      settings, settingsKey: settingsKey(settings), applySettings, getRunConfig,
+    };
+  }, [models, selected, select, effort, setEffort, webSearch, setWebSearch, applySettings, getRunConfig]);
   return <ModelContext.Provider value={value}>{children}</ModelContext.Provider>;
 }
 

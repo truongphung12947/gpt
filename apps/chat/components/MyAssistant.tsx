@@ -15,6 +15,7 @@ import { createChatsThreadListAdapter } from "@/lib/threadListAdapter";
 import { ModelProvider, useModel } from "@/components/model-context";
 import { RunErrorProvider, useRunError } from "@/components/run-error";
 import { SuggestionsSync } from "@/components/suggestions-sync";
+import { ChatSettingsSync } from "@/components/chat-settings-sync";
 
 const ASSISTANT_ID = process.env.NEXT_PUBLIC_LANGGRAPH_ASSISTANT_ID ?? "agent";
 
@@ -103,6 +104,7 @@ function Assistant() {
   return (
     <AssistantRuntimeProvider runtime={runtime}>
       <SuggestionsSync onChange={setSuggestions} />
+      <ChatSettingsSync />
       <div className="h-dvh">
         <Claude />
       </div>

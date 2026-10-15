@@ -1,5 +1,5 @@
 import { auth } from "@/auth";
-import { UUID, deleteChat, getChat, updateChat } from "@/lib/chats";
+import { UUID, cleanSettings, deleteChat, getChat, updateChat } from "@/lib/chats";
 import { graphFetch } from "@/lib/graph";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -22,10 +22,11 @@ export const GET = async (_req: Request, ctx: Ctx) => {
 export const PATCH = async (req: Request, ctx: Ctx) => {
   const g = await guard(ctx);
   if (g.error) return g.error;
-  const body = (await req.json().catch(() => ({}))) as { title?: unknown; archived?: unknown };
+  const body = (await req.json().catch(() => ({}))) as { title?: unknown; archived?: unknown; settings?: unknown };
   const chat = await updateChat(g.user.id, g.id, {
     title: typeof body.title === "string" ? body.title.slice(0, 200) : undefined,
     archived: typeof body.archived === "boolean" ? body.archived : undefined,
+    settings: cleanSettings(body.settings),
   });
   return chat ? Response.json({ chat }) : Response.json({ detail: "Not found" }, { status: 404 });
 };

@@ -34,7 +34,8 @@ export const query = async <T extends object = Record<string, unknown>>(
          created_at timestamptz not null default now(),
          updated_at timestamptz not null default now()
        );
-       create index if not exists chats_owner_updated on chats (owner, updated_at desc);`,
+       create index if not exists chats_owner_updated on chats (owner, updated_at desc);
+       alter table chats add column if not exists settings jsonb not null default '{}'::jsonb;`,
     )
     .then(() => undefined);
   try {
